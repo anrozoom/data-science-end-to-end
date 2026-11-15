@@ -1,0 +1,21 @@
+# Credenciales: nunca se suben.
+.env
+.env.*
+!.env.example
+secrets/*
+!secrets/.gitkeep
+*.p8
+*.pem
+*.key
+
+# Datos locales (el CSV de Kaggle vive en el volumen centinela_datos_fuente).
+data/
+
+# Artefactos de dbt y Spark que se regeneran al correr.
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+spark-warehouse/
+metastore_db/
+derby.log

@@ -1,0 +1,161 @@
+# Infraestructura local del PSet 2 (proyecto Centinela).
+#
+#   docker compose up -d          -> Kestra + su Postgres + clúster Spark (master y 1 worker)
+#   docker compose run --rm dbt   -> dbt (perfil "tools": no arranca con "up")
+#
+# Ninguna credencial está escrita aquí: Docker Compose reemplaza cada ${VARIABLE}
+# con el valor de pset_2/.env (que no se sube a git). Ver .env.example.
+# Los secretos que usan los flows de Kestra van en .env.kestra, generado por
+# scripts/generar_secretos_kestra.sh.
+
+name: centinela
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Base de datos interna de Kestra (flows, ejecuciones y cola). No guarda datos
+  # del proyecto: esos van a Snowflake.
+  # ---------------------------------------------------------------------------
+  kestra-postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: ${KESTRA_POSTGRES_PASSWORD:?Falta KESTRA_POSTGRES_PASSWORD en pset_2/.env}
+    volumes:
+      # Misma ruta que el laboratorio de la Semana 4: desde postgres:18 los datos
+      # viven en /var/lib/postgresql/18/docker, así que se monta la carpeta padre.
+      - datos_postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kestra -d kestra"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    mem_limit: 512m
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Kestra: ingesta y orquestación. UI en el puerto 8080 (ya etiquetado en el
+  # Codespace). Las tareas Python corren en contenedores hermanos a través del
+  # socket de Docker, igual que en el laboratorio de la Semana 4.
+  # ---------------------------------------------------------------------------
+  kestra:
+    image: kestra/kestra:v2.0.7
+    user: "root"
+    command: server standalone
+    depends_on:
+      kestra-postgres:
+        condition: service_healthy
+    env_file:
+      # Secretos de los flows (SECRET_* en base64). Si todavía no existe el
+      # archivo, Kestra arranca igual, solo que sin secretos.
+      - path: .env.kestra
+        required: false
+    environment:
+      # La JVM usa como máximo el 70 % del límite de memoria del contenedor.
+      JAVA_OPTS: "-XX:MaxRAMPercentage=70"
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://kestra-postgres:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: "${KESTRA_POSTGRES_PASSWORD}"
+        kestra:
+          server:
+            basic-auth:
+              username: "${KESTRA_ADMIN_USER:?Falta KESTRA_ADMIN_USER en pset_2/.env}"
+              password: "${KESTRA_ADMIN_PASSWORD:?Falta KESTRA_ADMIN_PASSWORD en pset_2/.env}"
+          repository:
+            type: postgres
+          storage:
+            type: local
+            local:
+              base-path: "/app/storage"
+          queue:
+            type: postgres
+          tasks:
+            tmp-dir:
+              path: /tmp/kestra-wd/tmp
+          url: http://localhost:8080/
+          plugins:
+            configurations:
+              # Permite que las tareas en contenedor monten el volumen con el CSV
+              # de Kaggle (centinela_datos_fuente), descargado una sola vez.
+              - type: io.kestra.plugin.scripts.runner.docker.Docker
+                values:
+                  volume-enabled: true
+    volumes:
+      - datos_kestra:/app/storage
+      - datos_fuente:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Ruta idéntica dentro y fuera: los contenedores hermanos de las tareas
+      # montan su carpeta de trabajo desde aquí.
+      - /tmp/kestra-wd:/tmp/kestra-wd
+    ports:
+      - "8080:8080"
+    mem_limit: 2560m
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Clúster Spark (imagen oficial de Apache, misma versión que el pyspark del
+  # curso). UI del master en 8081 para no chocar con Kestra en 8080.
+  # ---------------------------------------------------------------------------
+  spark-master:
+    image: apache/spark:3.5.3-java17-python3
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      SPARK_MASTER_HOST: spark-master
+      SPARK_MASTER_PORT: "7077"
+      SPARK_MASTER_WEBUI_PORT: "8080"
+      SPARK_DAEMON_MEMORY: 512m
+    volumes:
+      - ./spark:/opt/spark-jobs
+      - ./secrets:/secrets:ro
+    ports:
+      - "8081:8080"   # UI del master
+      - "4040:4040"   # UI de la aplicación mientras corre un job (spark-submit desde aquí)
+    mem_limit: 1536m  # daemon (512 MB) + driver del job de la OBT
+    restart: unless-stopped
+
+  spark-worker:
+    image: apache/spark:3.5.3-java17-python3
+    command: >
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077 --cores 2 --memory 2g
+    depends_on:
+      - spark-master
+    environment:
+      SPARK_DAEMON_MEMORY: 512m
+    volumes:
+      - ./spark:/opt/spark-jobs
+      - ./secrets:/secrets:ro
+    mem_limit: 3g     # 2 GB para ejecutores + daemon + margen
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # dbt Core con el adaptador de Snowflake. No es un servicio: se ejecuta y
+  # termina. Ejemplo: docker compose run --rm dbt debug
+  # ---------------------------------------------------------------------------
+  dbt:
+    build: ./dbt
+    image: centinela-dbt:1.11
+    profiles: ["tools"]
+    user: "${UID_GID:-1000:1000}"   # los archivos de target/ quedan a nombre del usuario del Codespace
+    working_dir: /usr/app/dbt
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DBT_PROFILES_DIR: /usr/app/dbt
+    volumes:
+      - ./dbt:/usr/app/dbt
+      - ./secrets:/secrets:ro
+    mem_limit: 1g
+
+volumes:
+  datos_postgres:
+  datos_kestra:
+  datos_fuente:
+    # Nombre fijo para que los flows de Kestra lo monten en sus tareas.
+    name: centinela_datos_fuente
