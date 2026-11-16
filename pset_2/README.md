@@ -13,6 +13,7 @@ Pipeline ELT reproducible del proyecto **Centinela** (detección de fraude con t
 | OBT | `OBT.TRANSACCIONES_OBT` | 1.852.394 |
 
 Documentación y evidencia en [`docs/`](docs/):
+- **[Documento técnico (PDF)](docs/PSet2_memo_Zuniga_Salvador.pdf)**
 - [arquitectura y batch frente a streaming](docs/arquitectura.md)
 - [ingesta](docs/ingesta.md)
 - [calidad de datos](docs/calidad_datos.md)
