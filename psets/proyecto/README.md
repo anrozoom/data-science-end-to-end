@@ -16,7 +16,9 @@ Los datos no están en el repositorio. Para regenerarlos desde cero: [los comand
 
 ## Cómo correr el pipeline de datos
 
-[Los comandos, en orden y desde qué carpeta, para ir de la fuente al warehouse: levantar la infraestructura, construir la imagen, subir el flow a Kestra, limpiar, cargar y correr dbt. Cada paso dice qué archivo deja y dónde. Se completa con el PSet 2.]
+El pipeline de datos del PSet 2 está en [`pset_2/`](../../pset_2/), en la raíz del repositorio, siguiendo el enunciado en PDF que entregó el profesor: **Kaggle → Kestra → Snowflake (RAW → BRONZE → SILVER → GOLD con dbt) → Spark (OBT)**. Los comandos en orden, desde qué carpeta se corren y el resultado esperado de cada etapa están en [`pset_2/README.md`](../../pset_2/README.md). La evidencia de cada etapa (ingesta, calidad de datos, modelo dimensional, OBT y limitaciones) está en [`pset_2/docs/`](../../pset_2/docs/).
+
+**Batch o streaming:** al proyecto le alcanza con **batch diario**. En esta etapa, los datos alimentan el entrenamiento, la evaluación y el monitoreo del modelo: comparar contra las reglas fijas, ajustar umbrales y reentrenar cada mes. Esas decisiones **no pierden valor con datos de horas o días** de antigüedad, y la fuente se publica una vez al día (~2.500 transacciones). Streaming solo se justificaría cuando el modelo pase a decidir en línea, es decir, a aprobar, verificar o retener cada compra en el momento de la autorización. Ahí, un dato de hace horas sí pierde valor, porque la ventana de "transacciones en la última hora" tiene que incluir las de hace minutos. El detalle está en [`pset_2/docs/arquitectura.md`](../../pset_2/docs/arquitectura.md).
 
 ## Cómo entrenar y evaluar el modelo
 
