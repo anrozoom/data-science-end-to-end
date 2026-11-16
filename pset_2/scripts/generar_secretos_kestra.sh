@@ -41,10 +41,18 @@ leer() {
 
 umask 077
 : > "$SALIDA"
+# chmod explícito: en /workspaces las ACL por defecto ignoran el umask.
+chmod 600 "$SALIDA"
 for nombre in "${NOMBRES[@]}"; do
   valor="$(leer "$nombre")"
   if [[ -z "$valor" ]]; then
     echo "  (omitido) $nombre: vacío o ausente en .env"
+    continue
+  fi
+  # Si sigue con el valor ficticio de .env.example, todavía no está configurada.
+  if [[ -f "$RAIZ/.env.example" ]] && [[ "$valor" == "$(sed -n "s/^${nombre}=//p" "$RAIZ/.env.example" | tail -n 1)" ]] \
+     && [[ "$nombre" != SNOWFLAKE_USER && "$nombre" != SNOWFLAKE_ROLE && "$nombre" != SNOWFLAKE_WAREHOUSE && "$nombre" != SNOWFLAKE_DATABASE ]]; then
+    echo "  (omitido) $nombre: todavía tiene el valor ficticio de .env.example"
     continue
   fi
   printf 'SECRET_%s=%s\n' "$nombre" "$(printf '%s' "$valor" | base64 -w0)" >> "$SALIDA"

@@ -4,7 +4,7 @@ Pipeline ELT reproducible para el proyecto **Centinela** (detección de fraude c
 
 **Kaggle (Sparkov) → Kestra → RAW → dbt → BRONZE → dbt → SILVER → dbt → GOLD → Spark → OBT**, con Snowflake como destino.
 
-> Estado: **etapa 1** (infraestructura local). Las secciones de Snowflake, ingesta, dbt y Spark se completan en las etapas siguientes.
+> Estado: **etapa 2** (infraestructura local y Snowflake). Las secciones de ingesta, dbt y Spark se completan en las etapas siguientes.
 
 ## Estructura
 
@@ -62,7 +62,36 @@ dbt no arranca con `up`: se ejecuta cuando se necesita.
 docker compose run --rm dbt --version
 ```
 
-## 3. Apagar
+## 3. Snowflake (una sola vez)
+
+1. Genera el par de llaves en `secrets/` (la privada, cifrada; queda fuera de git):
+
+   ```bash
+   openssl genrsa 2048 | openssl pkcs8 -topk8 -v2 aes-256-cbc -inform PEM -out secrets/snowflake_key.p8
+   chmod 600 secrets/snowflake_key.p8
+   openssl rsa -in secrets/snowflake_key.p8 -pubout -out secrets/snowflake_key.pub
+   grep -v -- '-----' secrets/snowflake_key.pub | tr -d '\n'; echo   # cuerpo de la llave pública
+   ```
+
+2. En Snowsight, con el rol `ACCOUNTADMIN`, ejecuta [`snowflake/01_setup.sql`](snowflake/01_setup.sql) reemplazando `<PEGA_AQUI_LA_LLAVE_PUBLICA>`. Crea:
+   - el warehouse XS `CENTINELA_WH` y el resource monitor `CENTINELA_RM` (15 créditos al mes);
+   - la base `CENTINELA` con los esquemas `RAW`, `BRONZE`, `SILVER`, `GOLD` y `OBT`;
+   - el rol `CENTINELA_ROLE` y el usuario de servicio `CENTINELA_SVC`, que solo entra con la llave.
+3. Completa la sección Snowflake de `.env` (`SNOWFLAKE_ACCOUNT` = resultado de la consulta `snowflake_account` del script; `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`).
+4. Verifica la conexión y los permisos:
+
+   ```bash
+   docker compose run --rm -v ./scripts:/scripts:ro --entrypoint python dbt /scripts/verificar_snowflake.py
+   ```
+
+5. Genera los secretos de Kestra y reinícialo:
+
+   ```bash
+   bash scripts/generar_secretos_kestra.sh
+   docker compose up -d kestra
+   ```
+
+## 4. Apagar
 
 ```bash
 docker compose down
