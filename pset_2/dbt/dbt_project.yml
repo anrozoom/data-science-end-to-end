@@ -1,0 +1,27 @@
+name: centinela
+version: "1.0.0"
+config-version: 2
+profile: centinela
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+target-path: target
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  centinela:
+    # Cada capa en su propio esquema de Snowflake (ver macros/generate_schema_name.sql).
+    bronze:
+      +schema: BRONZE
+      +materialized: table
+    silver:
+      +schema: SILVER
+      +materialized: table
+    gold:
+      +schema: GOLD
+      +materialized: table
+
+data_tests:
+  centinela:
+    +severity: error

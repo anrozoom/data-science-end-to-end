@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: slv_transacciones
+    description: Transacciones limpias, deduplicadas y con variables derivadas sin fuga de información.
+    columns:
+      - name: trans_num
+        description: Identificador único de la transacción (unidad de predicción).
+        data_tests: [unique, not_null]
+      - name: trans_ts
+        data_tests: [not_null]
+      - name: trans_fecha
+        description: "Regla de negocio: el dataset cubre 2019-2020 (test singular silver_fechas_en_2019_2020)."
+        data_tests:
+          - not_null
+      - name: amt
+        description: "Regla de negocio: monto estrictamente positivo."
+        data_tests:
+          - not_null
+          - valor_entre:
+              arguments: {minimo: 0.01, maximo: 1000000}
+      - name: merchant
+        description: Sin el prefijo artificial 'fraud_'.
+        data_tests: [not_null]
+      - name: zip
+        description: Código postal de 5 dígitos (ceros a la izquierda restaurados).
+        data_tests: [not_null]
+      - name: edad_en_transaccion
+        description: >
+          Edad cumplida del titular en la fecha de la transacción. El dataset tiene
+          titulares desde 13 años (simulado), por eso el rango válido es 10-100.
+        data_tests:
+          - not_null
+          - valor_entre:
+              arguments: {minimo: 10, maximo: 100}
+      - name: distancia_km
+        description: Distancia haversine cliente-comercio en km.
+        data_tests:
+          - not_null
+          - valor_entre:
+              arguments: {minimo: 0, maximo: 20000}
+      - name: trans_hora
+        data_tests:
+          - valor_entre:
+              arguments: {minimo: 0, maximo: 23}
+      - name: is_fraud
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false

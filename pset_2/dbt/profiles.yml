@@ -1,0 +1,19 @@
+# Perfil de dbt para Snowflake. No contiene credenciales: todo sale de variables de
+# entorno (pset_2/.env, que docker compose le pasa al contenedor de dbt).
+# Autenticación con par de llaves: la llave privada cifrada está montada en /secrets.
+centinela:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      schema: SILVER
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      private_key_passphrase: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
+      threads: 8
+      client_session_keep_alive: false
+      query_tag: centinela_dbt
