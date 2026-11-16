@@ -20,7 +20,7 @@ docker compose run --rm -v ./scripts:/scripts:ro -v ./docs:/docs --entrypoint py
 | **Precisión** | `trans_num` duplicado | **0** (1.852.394 distintos) |
 | | Filas idénticas en todas las columnas de negocio | **0** |
 | | Índice original (columna sin nombre) | Solo 1.296.675 valores distintos: el índice **se reinicia en `fraudTest.csv`**, así que **555.719 filas (30,00 %)** repiten un índice de train |
-| | Días presentes en los dos archivos | Ninguno: train y test no se solapan |
+| | Días presentes en los dos archivos | Solo el día frontera **2020-06-21**, repartido entre los dos archivos (1.366 filas en train y 2.028 en test, 3.394 en total) **sin transacciones duplicadas** (0 `trans_num` repetidos) |
 | **Consistencia** | Fechas como texto | 0 filas sin parsear en `trans_date_trans_time`, `dob` o `unix_time` |
 | | `unix_time` frente a `trans_date_trans_time` | Diferencia constante de **−2.556 a −2.557 días** (unos 7 años) en el 100 % de las filas |
 | | Prefijo `fraud_` en `merchant` | **100 %** de las filas (693 comercios) |
