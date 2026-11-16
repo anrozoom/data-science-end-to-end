@@ -19,3 +19,6 @@ dbt/.user.yml
 spark-warehouse/
 metastore_db/
 derby.log
+
+# Salidas del job de Spark (la evidencia se copia a docs/)
+spark/salida/

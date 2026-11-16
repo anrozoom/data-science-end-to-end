@@ -1,0 +1,8 @@
+filas_muestra: 5000
+n_tx_24h_coinciden: 5000
+n_tx_1h_coinciden: 5000
+segundos_negativos: 0
+filas_obt: 1852394
+trans_num_distintos: 1852394
+filas_fct: 1852394
+tasa_fraude_obt: 0.005210

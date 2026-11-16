@@ -104,6 +104,10 @@ services:
   spark-master:
     image: apache/spark:3.5.3-java17-python3
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    env_file:
+      # Variables SNOWFLAKE_* para el driver del job de la OBT (spark-submit corre aquí).
+      - path: .env
+        required: false
     environment:
       SPARK_MASTER_HOST: spark-master
       SPARK_MASTER_PORT: "7077"
