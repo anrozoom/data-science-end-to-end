@@ -58,6 +58,8 @@ chmod 600 .env
 
 Abre `.env` y reemplaza los valores ficticios: Kestra (usuario y contraseña de la UI), Snowflake (paso 3) y `KAGGLE_API_TOKEN`. Escribe los valores sin comillas y sin el carácter `$`.
 
+> **Si cambias `.env` después de levantar los servicios,** los contenedores que ya existen siguen con los valores viejos: Docker Compose lee `.env` (y `.env.kestra`) solo al **crear** cada contenedor. Regenera los secretos y recrea los servicios con el comando del paso 3.5. dbt no lo necesita, porque `docker compose run` crea un contenedor nuevo en cada ejecución.
+
 ## 2. Infraestructura local
 
 ```bash
@@ -72,7 +74,11 @@ docker compose ps
 | Spark job (UI) | Puerto **4040** | Solo mientras corre un job |
 | Postgres de Kestra | Sin puerto expuesto | Solo lo usa Kestra |
 
-dbt no arranca con `up`: se ejecuta con `docker compose run --rm dbt ...`, y la imagen se construye sola la primera vez.
+dbt no arranca con `up`: se ejecuta con `docker compose run --rm dbt ...`. Construye su imagen una vez (si se omite, el primer `run` la construye igual, pero antes muestra un aviso `pull access denied` al intentar bajarla de Docker Hub):
+
+```bash
+docker compose build dbt
+```
 
 ## 3. Snowflake (una sola vez)
 
@@ -96,14 +102,18 @@ dbt no arranca con `up`: se ejecuta con `docker compose run --rm dbt ...`, y la 
    docker compose run --rm -v ./scripts:/scripts:ro --entrypoint python dbt /scripts/verificar_snowflake.py
    ```
 
-5. Genera los secretos de Kestra y reinícialo:
+5. Genera los secretos de Kestra y **recrea** Kestra y Spark para que lean los valores nuevos (Kestra los secretos de `.env.kestra`; `spark-master` las variables `SNOWFLAKE_*` de `.env`, que usa el job de la OBT):
 
    ```bash
    bash scripts/generar_secretos_kestra.sh
-   docker compose up -d kestra
+   docker compose up -d --force-recreate kestra spark-master spark-worker
    ```
 
+   Comprobación: `docker compose exec -T spark-master sh -c 'env | grep -c ^SNOWFLAKE_'` debe mostrar `7`.
+
 ## 4. Ingesta con Kestra → RAW
+
+Requiere que `KAGGLE_API_TOKEN` estuviera en `.env` al correr el paso 3.5 (si no, el flow falla al buscar el secreto: complétalo y repite el paso 3.5).
 
 ```bash
 docker build -t centinela-ingesta:1.0 kestra/ingesta   # imagen que corren las tareas (pullPolicy NEVER)
