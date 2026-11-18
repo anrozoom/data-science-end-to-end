@@ -1,0 +1,42 @@
+# Servidor de tracking de MLflow del PSet 3 (proyecto Centinela).
+#
+#   docker compose up -d       -> MLflow en http://127.0.0.1:5055
+#
+# Puerto 5055 y no 5050: el devcontainer del curso ya levanta otro MLflow en 5050.
+# Backend store: SQLite en el volumen centinela_mlflow_backend (corridas, métricas,
+#   parámetros, tags y Model Registry).
+# Artifact store: volumen centinela_mlflow_artefactos, servido por el propio servidor
+#   (--serve-artifacts): los clientes suben y bajan modelos por HTTP, sin rutas locales.
+# Versión de MLflow igual a la del cliente del curso (requirements.txt: mlflow 2.17.2).
+
+name: centinela-pset3
+
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.17.2
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/backend/mlflow.db
+      --artifacts-destination /mlflow/artefactos
+      --serve-artifacts
+      --workers 2
+    ports:
+      - "5055:5000"
+    volumes:
+      - mlflow_backend:/mlflow/backend
+      - mlflow_artefactos:/mlflow/artefactos
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    mem_limit: 1536m
+    restart: unless-stopped
+
+volumes:
+  mlflow_backend:
+    name: centinela_mlflow_backend
+  mlflow_artefactos:
+    name: centinela_mlflow_artefactos

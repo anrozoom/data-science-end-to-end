@@ -1,0 +1,16 @@
+# Librerías del PSet 3, con versión fija. Las del curso (requirements.txt de la raíz) ya
+# traen scikit-learn, mlflow, pandas, pyarrow, matplotlib y jupyter; aquí se repiten sus
+# versiones para que el PSet sea reproducible por sí solo, más las dos que agrega.
+# Probadas juntas en Python 3.11 (pip check sin conflictos).
+numpy==1.26.4
+pandas==2.2.2
+pyarrow==16.1.0
+scikit-learn==1.5.2
+mlflow==2.17.2
+matplotlib==3.9.2
+ipykernel==6.29.5
+nbconvert==7.17.2
+# Lectura de la OBT desde Snowflake (src/datos.py), misma versión que la ingesta del PSet 2.
+snowflake-connector-python==4.8.0
+# LLM por prompting (Gemini, capa gratuita de Google AI Studio) en 03_baseline_candidatos.
+google-genai==2.34.0

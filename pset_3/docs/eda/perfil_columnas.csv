@@ -1,0 +1,41 @@
+,tipo,nulos,pct_nulos,valores_distintos,uso_en_modelo
+trans_num,object,0,0.0,1852394,excluida: identificador de la transacción
+trans_ts,datetime64[ns],0,0.0,1819551,excluida: marca de tiempo: se usa solo para ordenar y dividir
+fecha,object,0,0.0,730,excluida: fecha calendario: el modelo debe generalizar a fechas futuras
+anio,int16,0,0.0,2,excluida: año: no se repite en el futuro (2019/2020)
+mes,int8,0,0.0,12,excluida: mes: prueba (jul-dic) y entrenamiento cubren meses distintos del ciclo
+dia_semana,int8,0,0.0,7,candidata
+es_fin_de_semana,bool,0,0.0,2,candidata
+hora,int8,0,0.0,24,candidata
+es_nocturna,bool,0,0.0,2,candidata
+franja,object,0,0.0,4,excluida: redundante con hora
+particion_temporal,object,0,0.0,2,excluida: define la división entrenamiento/prueba
+cliente_sk,object,0,0.0,999,excluida: identificador del cliente (memorizaría clientes)
+gender,object,0,0.0,2,excluida: atributo sensible: se excluye por equidad
+state,object,0,0.0,51,candidata
+city_pop,int32,0,0.0,891,candidata
+job,object,0,0.0,497,excluida: 497 valores: alta cardinalidad y atributo personal
+cliente_lat,float64,0,0.0,983,excluida: coordenada cruda (identifica al cliente); se usa vía distancia_km
+cliente_long,float64,0,0.0,983,excluida: coordenada cruda; se usa vía distancia_km
+edad_en_transaccion,int8,0,0.0,84,candidata
+es_menor_de_edad,bool,0,0.0,2,candidata
+comercio_sk,object,0,0.0,693,excluida: identificador del comercio
+comercio,object,0,0.0,693,"excluida: 693 valores: alta cardinalidad, identificaría comercios del dataset simulado"
+es_multicategoria,bool,0,0.0,2,candidata
+categoria_sk,object,0,0.0,14,excluida: clave sustituta (la categoría entra como texto)
+categoria,object,0,0.0,14,candidata
+canal,object,0,0.0,3,candidata
+amt,float64,0,0.0,60616,candidata
+merch_lat,float64,0,0.0,1754157,excluida: coordenada cruda; se usa vía distancia_km
+merch_long,float64,0,0.0,1809753,excluida: coordenada cruda; se usa vía distancia_km
+distancia_km,float64,0,0.0,1852394,candidata
+n_tx_1h,int8,0,0.0,9,candidata
+gasto_1h,float64,0,0.0,43760,candidata
+n_tx_24h,int8,0,0.0,36,candidata
+gasto_24h,float64,0,0.0,276920,candidata
+segundos_desde_anterior,float64,999,0.054,174062,candidata
+n_tx_previas,int16,0,0.0,4392,candidata
+monto_medio_previo,float64,999,0.054,1850156,candidata
+monto_relativo,float64,999,0.054,1851394,candidata
+is_fraud,int8,0,0.0,2,target
+source_file,object,0,0.0,2,"excluida: archivo de origen de Kaggle: correlaciona con la partición, no con el fraude"

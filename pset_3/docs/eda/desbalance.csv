@@ -1,0 +1,4 @@
+,filas,fraudes,tasa_fraude_pct,legitimas_por_fraude
+entrenamiento (ene-2019 a jun-2020),1326733,7639,0.576,173.0
+prueba (jul-dic 2020),525661,2012,0.383,260.0
+total,1852394,9651,0.521,191.0
