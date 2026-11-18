@@ -92,3 +92,64 @@ def registrar_modelo(pipeline, X_ejemplo, nombre_artefacto: str = "modelo",
         code_paths=[str(RAIZ / "src" / "pipeline.py")],
         registered_model_name=nombre_registro,
     )
+
+
+def borrar_corridas(fases: list[str]) -> int:
+    """Borra (soft-delete) las corridas activas de estas fases para que Restart + Run All
+    de un notebook no duplique corridas en el experimento."""
+    exp = mlflow.get_experiment_by_name(EXPERIMENTO)
+    previas = mlflow.search_runs([exp.experiment_id], output_format="list", max_results=50000)
+    n = 0
+    for r in previas:
+        if r.data.tags.get("fase") in fases:
+            mlflow.delete_run(r.info.run_id)
+            n += 1
+    return n
+
+
+def entrenar_final(estimador, X, y, fraccion=FRACCION_LEGITIMAS):
+    """Ajusta el pipeline con TODO el entrenamiento usando la misma estrategia que en la CV
+    (todos los fraudes + una fracción fija de las legítimas)."""
+    import time
+    from sklearn.base import clone
+    from pipeline import submuestrear, pesos_prevalencia_real, auc_pr
+
+    y = np.asarray(y)
+    idx = submuestrear(np.arange(len(y)), y, fraccion, SEMILLA + 100)
+    modelo = clone(estimador)
+    t0 = time.perf_counter()
+    modelo.fit(X.iloc[idx], y[idx])
+    segundos = time.perf_counter() - t0
+    score = modelo.predict_proba(X.iloc[idx])[:, 1]
+    return modelo, {"final_segundos_entrenamiento": segundos, "final_filas_ajuste": len(idx),
+                    "final_auc_pr_entrenamiento": auc_pr(y[idx], score, pesos_prevalencia_real(y[idx], fraccion))}
+
+
+def correr_modelo(nombre: str, familia: str, fase: str, estimador, X, y, monto, cv,
+                  params: dict | None = None, registrar_artefacto: bool = True, nested: bool = False,
+                  tags_extra: dict | None = None) -> dict:
+    """CV + ajuste final + registro completo en MLflow. Devuelve un resumen y el run_id."""
+    from pipeline import evaluar_cv
+
+    with mlflow.start_run(run_name=nombre, nested=nested) as run:
+        etiquetar(fase, familia, **(tags_extra or {}))
+        registrar_datos()
+        if params:
+            mlflow.log_params({k: str(v) for k, v in params.items()})
+        modelo_est = estimador.named_steps["modelo"] if hasattr(estimador, "named_steps") else estimador
+        mlflow.log_params({f"modelo__{k}": str(v) for k, v in modelo_est.get_params().items()
+                           if not callable(v) and len(str(v)) < 250})
+        mlflow.log_param("modelo_clase", type(modelo_est).__name__)
+        res = evaluar_cv(estimador, X, y, cv, monto=monto)
+        registrar_resultado_cv(res)
+        resumen = {"run_id": run.info.run_id, "nombre": nombre, "familia": familia, "fase": fase,
+                   **{k: v for k, v in res.items() if isinstance(v, float)}}
+        if registrar_artefacto:
+            final, met = entrenar_final(estimador, X, y)
+            mlflow.log_metrics(met)
+            registrar_modelo(final, X)
+            resumen.update(met)
+            resumen["modelo_entrenado"] = final
+        resumen["oof_indices"], resumen["oof_score"] = res["oof_indices"], res["oof_score"]
+        resumen["pliegues"] = res["pliegues"]
+    return resumen
