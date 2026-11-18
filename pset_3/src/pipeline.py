@@ -103,21 +103,37 @@ class MontoSobreP95Categoria(BaseEstimator, TransformerMixin):
         return np.array(["amt_sobre_p95_categoria"])
 
 
-def construir_preparacion() -> Pipeline:
-    columnas = ColumnTransformer([
+TODAS_DERIVADAS = ("log_amt", "hora_ciclica", "log_segundos_desde_anterior", "amt_sobre_p95_categoria")
+# Features que se quedan tras la ablación pareada de 02_features.ipynb: la hora cíclica no
+# mejoró en ningún modelo (hora y es_nocturna ya capturan la señal) y se descarta.
+DERIVADAS_FINALES = ("log_amt", "log_segundos_desde_anterior", "amt_sobre_p95_categoria")
+
+
+def construir_preparacion(derivadas=DERIVADAS_FINALES) -> Pipeline:
+    """Preparación completa. `derivadas` permite quitar features derivadas (ablación en 02)."""
+    numericas = list(NUMERICAS_OBT)
+    if "log_amt" in derivadas:
+        numericas.append("log_amt")
+    if "hora_ciclica" in derivadas:
+        numericas += ["hora_sin", "hora_cos"]
+    if "log_segundos_desde_anterior" in derivadas:
+        numericas.append("log_segundos_desde_anterior")
+    bloques = [
         ("numericas", Pipeline([
             # monto_relativo y segundos_desde_anterior son nulos en la 1.a compra del cliente:
             # mediana + indicador de faltante.
             ("imputar", SimpleImputer(strategy="median", add_indicator=True)),
             ("escalar", StandardScaler()),
-        ]), NUMERICAS),
+        ]), numericas),
         ("binarias", SimpleImputer(strategy="most_frequent"), BINARIAS),
         ("categoricas", OneHotEncoder(handle_unknown="ignore", sparse_output=False), CATEGORICAS),
-        ("monto_p95_categoria", Pipeline([
+    ]
+    if "amt_sobre_p95_categoria" in derivadas:
+        bloques.append(("monto_p95_categoria", Pipeline([
             ("p95", MontoSobreP95Categoria()),
             ("escalar", StandardScaler()),
-        ]), ["amt", "categoria"]),
-    ], verbose_feature_names_out=False)
+        ]), ["amt", "categoria"]))
+    columnas = ColumnTransformer(bloques, verbose_feature_names_out=False)
     return Pipeline([("features", _FeaturesDerivadas()), ("columnas", columnas)])
 
 
@@ -130,9 +146,13 @@ class _FeaturesDerivadas(BaseEstimator, TransformerMixin):
     def transform(self, X):
         return agregar_features(pd.DataFrame(X))
 
+    def get_feature_names_out(self, input_features=None):
+        base = list(input_features) if input_features is not None else list(ENTRADA)
+        return np.array(base + [c for c in DERIVADAS if c not in base])
 
-def construir_modelo(estimador) -> Pipeline:
-    return Pipeline([("preparacion", construir_preparacion()), ("modelo", estimador)])
+
+def construir_modelo(estimador, derivadas=DERIVADAS_FINALES) -> Pipeline:
+    return Pipeline([("preparacion", construir_preparacion(derivadas)), ("modelo", estimador)])
 
 
 # ------------------------------------------------------------------------ división y CV

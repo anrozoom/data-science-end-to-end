@@ -1,0 +1,19 @@
+columna,motivo
+trans_num,identificador de la transacción
+trans_ts,marca de tiempo: se usa solo para ordenar y dividir
+fecha,fecha calendario: el modelo debe generalizar a fechas futuras
+anio,año: no se repite en el futuro (2019/2020)
+mes,mes: prueba (jul-dic) y entrenamiento cubren meses distintos del ciclo
+particion_temporal,define la división entrenamiento/prueba
+source_file,"archivo de origen de Kaggle: correlaciona con la partición, no con el fraude"
+cliente_sk,identificador del cliente (memorizaría clientes)
+comercio_sk,identificador del comercio
+categoria_sk,clave sustituta (la categoría entra como texto)
+comercio,"693 valores: alta cardinalidad, identificaría comercios del dataset simulado"
+job,497 valores: alta cardinalidad y atributo personal
+gender,atributo sensible: se excluye por equidad
+cliente_lat,coordenada cruda (identifica al cliente); se usa vía distancia_km
+cliente_long,coordenada cruda; se usa vía distancia_km
+merch_lat,coordenada cruda; se usa vía distancia_km
+merch_long,coordenada cruda; se usa vía distancia_km
+franja,redundante con hora

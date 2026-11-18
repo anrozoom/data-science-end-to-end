@@ -1,0 +1,9 @@
+modelo,feature,aporte_auc_pr,desv_pliegues,veredicto
+logistica,log_amt,0.018162365433882943,0.027953940484834894,no se distingue del ruido
+logistica,hora_ciclica,-0.00025353052431703604,0.01740945832026473,no se distingue del ruido
+logistica,log_segundos_desde_anterior,0.00036378113825136227,0.017054135815375508,no se distingue del ruido
+logistica,amt_sobre_p95_categoria,0.011779942351183348,0.017331886263629553,no se distingue del ruido
+hist_gb,log_amt,0.0,0.015621034934252945,no se distingue del ruido
+hist_gb,hora_ciclica,-0.0009084627029498638,0.01626493355264125,no se distingue del ruido
+hist_gb,log_segundos_desde_anterior,0.00244683231537568,0.015621034934252945,no se distingue del ruido
+hist_gb,amt_sobre_p95_categoria,0.003164015151892796,0.017877292433722325,no se distingue del ruido
