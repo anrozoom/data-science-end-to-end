@@ -2,6 +2,8 @@
 
 Modelo de detección de fraude para el proyecto **Centinela**: puntuar cada transacción con tarjeta en el momento de la autorización. Parte de la OBT construida en el PSet 2 (`CENTINELA.OBT.TRANSACCIONES_OBT` en Snowflake) y termina con un modelo registrado en MLflow como `centinela-modelo@champion`.
 
+📄 **Documento técnico:** [PSet3_memo_Zuniga_Salvador.pdf](docs/PSet3_memo_Zuniga_Salvador.pdf)
+
 **OBT → EDA → Features → Pipeline → Línea base → Candidatos → Tuning → Selección → Model Registry**
 
 ## Estructura
@@ -23,6 +25,7 @@ pset_3/
 │   ├── pipeline.py             Features, Pipeline + ColumnTransformer, CV temporal, reglas fijas y métricas
 │   └── experimento.py          Registro de corridas en MLflow (datos, tags, métricas, modelo con firma)
 └── docs/                       Evidencia: tablas (CSV) y gráficos (PNG) de cada notebook, y corridas.csv
+    └── PSet3_memo_Zuniga_Salvador.pdf   Documento técnico del PSet 3
 ```
 
 `data/` (el snapshot en Parquet) y `.env` no se suben a git.

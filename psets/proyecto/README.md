@@ -33,6 +33,8 @@ La experimentación del PSet 3 está en [`pset_3/`](../../pset_3/), en la raíz 
    - `05_seleccion`
    - `06_reproduccion`
 
+📄 **Documento técnico:** [PSet3_memo_Zuniga_Salvador.pdf](../../pset_3/docs/PSet3_memo_Zuniga_Salvador.pdf)
+
 La preparación sin fuga vive en `pset_3/src/pipeline.py` y los notebooks la importan. La evidencia de cada etapa está en [`pset_3/docs/`](../../pset_3/docs/), incluida `corridas.csv`.
 
 ## Modelo final
