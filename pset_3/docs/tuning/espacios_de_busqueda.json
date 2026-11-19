@@ -1,0 +1,24 @@
+{
+  "hist_gradient_boosting": {
+    "learning_rate": "loguniform(0.01, 0.3)",
+    "max_iter": "randint(100, 600)",
+    "max_leaf_nodes": "randint(15, 128)",
+    "min_samples_leaf": "randint(10, 200)",
+    "l2_regularization": "loguniform(0.0001, 10)",
+    "max_features": "uniform(0.5, 0.5)"
+  },
+  "random_forest": {
+    "n_estimators": "randint(100, 400)",
+    "max_depth": "[None, 8, 12, 16, 24]",
+    "min_samples_leaf": "randint(1, 20)",
+    "max_features": "['sqrt', 'log2', 0.3, 0.5]",
+    "class_weight": "[None, 'balanced_subsample']"
+  },
+  "mlp": {
+    "hidden_layer_sizes": "[(64,), (100,), (128,), (64, 32), (128, 64), (256, 128)]",
+    "alpha": "loguniform(1e-06, 0.1)",
+    "learning_rate_init": "loguniform(0.0001, 0.01)",
+    "batch_size": "[128, 256, 512]",
+    "early_stopping": "[True, False]"
+  }
+}
