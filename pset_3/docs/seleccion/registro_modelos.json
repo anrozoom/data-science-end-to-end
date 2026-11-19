@@ -1,0 +1,24 @@
+{
+  "champion": {
+    "modelo": "hist_gradient_boosting",
+    "version_elegida": "por_defecto",
+    "run_id": "70bfd857902b4cc188d52a94d934c442",
+    "version_registro": 1,
+    "model_uri": "models:/centinela-modelo@champion",
+    "prueba_auc_pr": 0.9654700363040251,
+    "prueba_perdida_neta": 14649.029999999999,
+    "umbral": 0.23999331074785862,
+    "run_id_origen": "fb65308c5c97454c9567082b30206b3c"
+  },
+  "challenger": {
+    "modelo": "random_forest",
+    "version_elegida": "tuneada",
+    "run_id": "24f82ec738f8412c9de7599f4e0051a2",
+    "version_registro": 2,
+    "model_uri": "models:/centinela-modelo@challenger",
+    "prueba_auc_pr": 0.9404027860059839,
+    "prueba_perdida_neta": 17834.33,
+    "umbral": 0.44380225770987103,
+    "run_id_origen": "54a38a3975784db4bc9de3669ac509d8"
+  }
+}

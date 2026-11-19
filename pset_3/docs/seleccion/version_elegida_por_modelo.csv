@@ -1,0 +1,4 @@
+modelo,defecto_cv,defecto_brecha,tuneada_cv,tuneada_brecha,mejora,desviacion_ref,mejora_supera_desv,version_elegida,motivo,cv_version_elegida
+hist_gradient_boosting,0.9612 ± 0.0163,0.0368,0.9637 ± 0.0151,0.0346,0.0025,0.0163,False,por_defecto,empate en AUC-PR (mejora +0.0025 ≤ desv. 0.0163) y brechas parecidas (dif. 0.0021 < 0.01); por simplicidad,0.9612 ± 0.0163
+random_forest,0.9406 ± 0.0202,0.0594,0.9394 ± 0.0189,0.0457,-0.0013,0.0202,False,tuneada,empate en AUC-PR (mejora -0.0013 ≤ desv. 0.0202); menor brecha (0.0457 vs 0.0594),0.9394 ± 0.0189
+mlp,0.9177 ± 0.0233,0.0823,0.9284 ± 0.0255,0.0549,0.0107,0.0255,False,tuneada,empate en AUC-PR (mejora +0.0107 ≤ desv. 0.0255); menor brecha (0.0549 vs 0.0823),0.9284 ± 0.0255
