@@ -1,0 +1,85 @@
+id: ingesta_diaria
+namespace: centinela.ingesta
+description: |
+  Ingesta diaria simulada de transacciones Sparkov (Kaggle) hacia CENTINELA.RAW.TRANSACCIONES.
+  Cada ejecución carga UNA fecha: la del trigger (o la del input "fecha" si se lanza a mano).
+  La primera ejecución descarga el dataset una sola vez al volumen centinela_datos_fuente.
+  La carga es idempotente (borra e inserta por _LOAD_DATE dentro de una transacción).
+  Backfill: desde la pestaña Triggers del flow, rango 2019-01-01 a 2021-01-01.
+
+labels:
+  proyecto: centinela
+  capa: raw
+
+inputs:
+  - id: fecha
+    type: DATE
+    required: false
+    description: Fecha a cargar (AAAA-MM-DD). Si se omite, se usa la fecha del trigger o la de hoy.
+  - id: simular_falla
+    type: BOOL
+    defaults: false
+    description: Demostración del retry. Si es true, el primer intento falla a propósito.
+
+# Hasta 16 fechas en paralelo: el backfill de 731 días termina en minutos. Las demás
+# ejecuciones esperan en cola (no se descartan).
+concurrency:
+  limit: 16
+  behavior: QUEUE
+
+tasks:
+  - id: cargar_dia
+    type: io.kestra.plugin.scripts.shell.Commands
+    description: Descarga (solo la primera vez), sube el archivo del día a un stage y lo copia a RAW.
+    containerImage: centinela-ingesta:1.0
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      pullPolicy: NEVER
+      volumes:
+        - centinela_datos_fuente:/data
+      memory:
+        memory: "1GB"
+    # Fallas esperables: red o API de Kaggle caída un momento, Snowflake que tarda en
+    # encender el warehouse o rechaza una sesión. Son transitorias: backoff exponencial
+    # de 10 s a 2 min, hasta 4 intentos (unos 3,5 min en total). Si la fuente estuviera
+    # caída horas, no se suben los reintentos: se re-ejecuta la fecha con backfill.
+    retry:
+      type: exponential
+      interval: PT10S
+      maxInterval: PT2M
+      maxAttempts: 4
+    timeout: PT20M
+    env:
+      FECHA: "{{ (inputs.fecha ?? trigger.date ?? execution.startDate) | date('yyyy-MM-dd') }}"
+      SIMULAR_FALLA: "{{ inputs.simular_falla ?? false }}"
+      EJECUCION_ID: "{{ execution.id }}"
+      SNOWFLAKE_ACCOUNT: "{{ secret('SNOWFLAKE_ACCOUNT') }}"
+      SNOWFLAKE_USER: "{{ secret('SNOWFLAKE_USER') }}"
+      SNOWFLAKE_ROLE: "{{ secret('SNOWFLAKE_ROLE') }}"
+      SNOWFLAKE_WAREHOUSE: "{{ secret('SNOWFLAKE_WAREHOUSE') }}"
+      SNOWFLAKE_DATABASE: "{{ secret('SNOWFLAKE_DATABASE') }}"
+      SNOWFLAKE_PRIVATE_KEY: "{{ secret('SNOWFLAKE_PRIVATE_KEY') }}"
+      SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: "{{ secret('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+      KAGGLE_API_TOKEN: "{{ secret('KAGGLE_API_TOKEN') }}"
+    commands:
+      - python /app/cargar_dia.py
+
+# Manejo de error visible: si la tarea agota los reintentos, queda un log ERROR con
+# la fecha y la ejecución, y la ejecución termina en FAILED.
+errors:
+  - id: registrar_falla
+    type: io.kestra.plugin.core.log.Log
+    level: ERROR
+    message: >-
+      La ingesta de {{ (inputs.fecha ?? trigger.date ?? execution.startDate) | date('yyyy-MM-dd') }}
+      falló después de agotar los reintentos (ejecución {{ execution.id }}).
+      Revisar los logs de la tarea cargar_dia y re-ejecutar esa fecha.
+
+triggers:
+  # Una ejecución por día a las 02:00 UTC, con la fecha del día como parámetro.
+  # Con la fuente estática, las fechas posteriores a 2020 terminan sin datos; el
+  # histórico 2019-2020 se carga con el backfill de este mismo trigger.
+  - id: diario
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 2 * * *"
+    recoverMissedSchedules: NONE

@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: brz_transacciones
+    description: Copia 1:1 de RAW.TRANSACCIONES con tipos correctos y nombres normalizados.
+    columns:
+      - name: trans_num
+        data_tests: [not_null]
+      - name: trans_ts
+        description: Fecha y hora de la transacción (desde el texto original).
+        data_tests: [not_null]
+      - name: amt
+        data_tests: [not_null]
+      - name: is_fraud
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false

@@ -1,0 +1,99 @@
+version: 2
+
+models:
+  - name: fct_transacciones
+    description: "Hecho de transacciones. Grano: una fila por transacción (trans_num)."
+    columns:
+      - name: trans_num
+        data_tests: [unique, not_null]
+      - name: fecha_sk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_fecha'), field: fecha_sk}
+      - name: hora_sk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_hora'), field: hora_sk}
+      - name: cliente_sk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_cliente'), field: cliente_sk}
+      - name: comercio_sk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_comercio'), field: comercio_sk}
+      - name: categoria_sk
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('dim_categoria'), field: categoria_sk}
+      - name: amt
+        data_tests:
+          - not_null
+          - valor_entre:
+              arguments: {minimo: 0.01, maximo: 1000000}
+      - name: is_fraud
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+  - name: dim_cliente
+    description: Una fila por tarjeta (cc_num).
+    columns:
+      - name: cliente_sk
+        data_tests: [unique, not_null]
+      - name: cc_num
+        data_tests: [unique, not_null]
+      - name: gender
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['F', 'M']}
+
+  - name: dim_comercio
+    description: Una fila por comercio.
+    columns:
+      - name: comercio_sk
+        data_tests: [unique, not_null]
+      - name: comercio
+        data_tests: [unique, not_null]
+
+  - name: dim_categoria
+    description: Una fila por categoría de comercio.
+    columns:
+      - name: categoria_sk
+        data_tests: [unique, not_null]
+      - name: categoria
+        data_tests: [unique, not_null]
+      - name: canal
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['en_linea', 'presencial', 'otro']}
+
+  - name: dim_fecha
+    description: Calendario 2019-2020 (731 días).
+    columns:
+      - name: fecha_sk
+        data_tests: [unique, not_null]
+      - name: fecha
+        data_tests: [unique, not_null]
+      - name: particion_temporal
+        data_tests:
+          - accepted_values:
+              arguments: {values: ['entrenamiento', 'prueba']}
+
+  - name: dim_hora
+    description: Horas del día 0-23.
+    columns:
+      - name: hora_sk
+        data_tests:
+          - unique
+          - not_null
+          - valor_entre:
+              arguments: {minimo: 0, maximo: 23}

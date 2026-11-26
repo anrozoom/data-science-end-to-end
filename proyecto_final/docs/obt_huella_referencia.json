@@ -1,0 +1,34 @@
+{
+  "proposito": "Referencia para verificar que la OBT reconstruida en la cuenta nueva de Snowflake es equivalente a la OBT con la que se entrenó el champion (PSet 3).",
+  "obt_cuenta_anterior": {
+    "origen": "snowflake:CENTINELA.OBT.TRANSACCIONES_OBT",
+    "cuenta_hash16": "84eaada37d3f95c1",
+    "hash_agg_snowflake": 4472567123843243718,
+    "filas": 1852394,
+    "fraudes": 9651,
+    "trans_num_distintos": 1852394,
+    "columnas": 40,
+    "suma_amt": 129785332.01,
+    "sha256_contenido": "0af7a5e9487e73e25d0e9f57906dad38abf69a750fff32edc38b602a7f797a9b",
+    "metodo": "CSV canónico ordenado por trans_num, columnas alfabéticas, floats redondeados a 6 decimales",
+    "calculado_utc": "2026-11-26 23:15:25",
+    "segundos": 73.6,
+    "pandas": "2.2.2"
+  },
+  "snapshot_pset3": {
+    "origen": "parquet:obt_snapshot.parquet",
+    "sha256_archivo": "9be410f73fb8c090e7647fc27559665c28431d29a0652548d16d8b932d9e9bce",
+    "filas": 1852394,
+    "fraudes": 9651,
+    "trans_num_distintos": 1852394,
+    "columnas": 40,
+    "suma_amt": 129785332.01,
+    "sha256_contenido": "0af7a5e9487e73e25d0e9f57906dad38abf69a750fff32edc38b602a7f797a9b",
+    "metodo": "CSV canónico ordenado por trans_num, columnas alfabéticas, floats redondeados a 6 decimales",
+    "calculado_utc": "2026-11-26 23:16:38",
+    "segundos": 73.0,
+    "pandas": "2.2.2"
+  },
+  "equivalentes": true,
+  "como_verificar": "python scripts/huella_obt.py snowflake --env .env  -> comparar filas, fraudes, sha256_contenido y hash_agg_snowflake con estos valores"
+}

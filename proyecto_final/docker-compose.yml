@@ -1,0 +1,175 @@
+# Proyecto final · Centinela: toda la infraestructura con UN solo comando.
+#
+#   docker compose up -d          -> Kestra + Postgres, Spark (master + worker) y MLflow
+#   docker compose run --rm dbt   -> dbt (perfil "tools": no arranca con "up")
+#
+# La API (fase 2) y el tablero (fase 6) se agregan a este mismo archivo.
+# Ninguna credencial está escrita aquí: Docker Compose toma cada ${VARIABLE} de
+# proyecto_final/.env (no se sube a git). Ver .env.example.
+
+name: centinela-final
+
+services:
+
+  # --------------------------------------------------------------- Kestra
+  kestra-postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: ${KESTRA_POSTGRES_PASSWORD:?Falta KESTRA_POSTGRES_PASSWORD en .env}
+    volumes:
+      - final_postgres:/var/lib/postgresql          # postgres:18 guarda en /var/lib/postgresql/18/docker
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kestra -d kestra"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    mem_limit: 512m
+    restart: unless-stopped
+
+  kestra:
+    image: kestra/kestra:v2.0.7
+    user: "root"
+    command: server standalone
+    depends_on:
+      kestra-postgres:
+        condition: service_healthy
+    env_file:
+      - path: .env.kestra                           # secretos SECRET_* (scripts/generar_secretos_kestra.sh)
+        required: false
+    environment:
+      JAVA_OPTS: "-XX:MaxRAMPercentage=70"
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://kestra-postgres:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: "${KESTRA_POSTGRES_PASSWORD}"
+        kestra:
+          server:
+            basic-auth:
+              username: "${KESTRA_ADMIN_USER:?Falta KESTRA_ADMIN_USER en .env}"
+              password: "${KESTRA_ADMIN_PASSWORD:?Falta KESTRA_ADMIN_PASSWORD en .env}"
+          repository:
+            type: postgres
+          storage:
+            type: local
+            local:
+              base-path: "/app/storage"
+          queue:
+            type: postgres
+          tasks:
+            tmp-dir:
+              path: /tmp/kestra-wd/tmp
+          url: http://localhost:8080/
+          plugins:
+            configurations:
+              - type: io.kestra.plugin.scripts.runner.docker.Docker
+                values:
+                  volume-enabled: true
+    volumes:
+      - final_kestra:/app/storage
+      - datos_fuente:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/kestra-wd:/tmp/kestra-wd
+    ports:
+      - "8080:8080"
+    mem_limit: 2560m
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- Spark
+  spark-master:
+    image: apache/spark:3.5.3-java17-python3
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    env_file:
+      - path: .env                                  # SNOWFLAKE_* para el driver del job de la OBT
+        required: false
+    environment:
+      SPARK_MASTER_HOST: spark-master
+      SPARK_MASTER_PORT: "7077"
+      SPARK_MASTER_WEBUI_PORT: "8080"
+      SPARK_DAEMON_MEMORY: 512m
+    volumes:
+      - ./spark:/opt/spark-jobs
+      - ./secrets:/secrets:ro
+    ports:
+      - "8081:8080"
+      - "4040:4040"
+    mem_limit: 1536m
+    restart: unless-stopped
+
+  spark-worker:
+    image: apache/spark:3.5.3-java17-python3
+    command: >
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077 --cores 2 --memory 2g
+    depends_on:
+      - spark-master
+    environment:
+      SPARK_DAEMON_MEMORY: 512m
+    volumes:
+      - ./spark:/opt/spark-jobs
+      - ./secrets:/secrets:ro
+    mem_limit: 3g
+    restart: unless-stopped
+
+  # --------------------------------------------------------------- MLflow
+  # Mismo registro y corridas del PSet 3: reutiliza sus volúmenes por nombre.
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.17.2
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/backend/mlflow.db
+      --artifacts-destination /mlflow/artefactos
+      --serve-artifacts
+      --workers 2
+    ports:
+      - "5055:5000"
+    volumes:
+      - mlflow_backend:/mlflow/backend
+      - mlflow_artefactos:/mlflow/artefactos
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    mem_limit: 1536m
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ dbt
+  dbt:
+    build: ./dbt
+    image: centinela-dbt:1.11
+    profiles: ["tools"]
+    user: "${UID_GID:-1000:1000}"
+    working_dir: /usr/app/dbt
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DBT_PROFILES_DIR: /usr/app/dbt
+    volumes:
+      - ./dbt:/usr/app/dbt
+      - ./secrets:/secrets:ro
+    mem_limit: 1g
+
+networks:
+  default:
+    name: centinela_red        # nombre fijo: las tareas de Kestra (dbt, Spark) se unen a esta red
+
+volumes:
+  final_postgres:
+    name: centinela_final_postgres
+  final_kestra:
+    name: centinela_final_kestra
+  datos_fuente:
+    name: centinela_datos_fuente          # CSV de Kaggle (se descarga una vez; compartido con el PSet 2)
+  # Registro y corridas de MLflow del PSet 3 (fuente de verdad del modelo). NO usar "down -v".
+  mlflow_backend:
+    name: centinela_mlflow_backend
+  mlflow_artefactos:
+    name: centinela_mlflow_artefactos

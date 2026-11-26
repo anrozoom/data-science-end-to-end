@@ -1,0 +1,23 @@
+[
+  {
+    "nombre":"hist_gradient_boosting",
+    "familia":"boosting",
+    "cv_auc_pr_media":0.9612441637,
+    "cv_auc_pr_std":0.0162649336,
+    "run_id":"fb65308c5c97454c9567082b30206b3c"
+  },
+  {
+    "nombre":"random_forest",
+    "familia":"bagging",
+    "cv_auc_pr_media":0.9406294162,
+    "cv_auc_pr_std":0.0201751159,
+    "run_id":"7c39d1063bde43e295f5a48a99c9505e"
+  },
+  {
+    "nombre":"mlp",
+    "familia":"red_neuronal",
+    "cv_auc_pr_media":0.9177241398,
+    "cv_auc_pr_std":0.0232980688,
+    "run_id":"efc4fbf08527471ab0b4335e715728df"
+  }
+]

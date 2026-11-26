@@ -1,0 +1,18 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Datos tal como los carga Kestra desde Kaggle (todo texto + auditoría).
+    database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+    schema: RAW
+    tables:
+      - name: transacciones
+        identifier: TRANSACCIONES
+        description: Una fila por transacción Sparkov (fraudTrain.csv + fraudTest.csv).
+        columns:
+          - name: trans_num
+            data_tests:
+              - not_null
+          - name: _load_date
+            data_tests:
+              - not_null

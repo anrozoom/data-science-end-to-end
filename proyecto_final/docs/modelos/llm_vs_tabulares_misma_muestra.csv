@@ -1,0 +1,7 @@
+,auc_pr_en_muestra,nota
+random_forest,0.9983333333333333,"120 filas del último pliegue de validación, prevalencia 20% (no comparable con la CV a prevalencia real)"
+hist_gradient_boosting,0.9983333333333333,"120 filas del último pliegue de validación, prevalencia 20% (no comparable con la CV a prevalencia real)"
+mlp,0.9893691001027957,"120 filas del último pliegue de validación, prevalencia 20% (no comparable con la CV a prevalencia real)"
+llm_gemini,0.961929002370179,"120 filas del último pliegue de validación, prevalencia 20% (no comparable con la CV a prevalencia real)"
+logistic_regression,0.9155835817988265,"120 filas del último pliegue de validación, prevalencia 20% (no comparable con la CV a prevalencia real)"
+reglas_fijas_pset1,0.3320075757575758,"120 filas del último pliegue de validación, prevalencia 20% (no comparable con la CV a prevalencia real)"
