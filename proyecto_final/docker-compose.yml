@@ -188,6 +188,12 @@ services:
       - ./secrets:/secrets:ro
     mem_limit: 1g
 
+  # Imagen de las tareas de ML que lanza Kestra (simulación, monitoreo, reentrenamiento). Solo se construye.
+  ml:
+    build: ./simulacion
+    image: centinela-ml:1.0
+    profiles: ["tools"]
+
 networks:
   default:
     name: centinela_red        # nombre fijo: las tareas de Kestra (dbt, Spark) se unen a esta red

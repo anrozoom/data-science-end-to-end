@@ -4,8 +4,8 @@
    predicciones fuera de pliegue (OOF) de la misma CV (HistGradientBoosting por defecto, TimeSeriesSplit(3),
    misma semilla), agrupadas en semanas de 7 días dentro de cada pliegue de validación (como los lotes).
    Umbral = media - 2 desviaciones de la AUC-PR semanal. Se descarta el umbral "por pliegue" (media - 2
-   desviaciones de las 3 AUC-PR de pliegue, 0,961 ± 0,016 en el PSet 3) porque un pliegue tiene unos
-   400.000 casos y una semana unos 17.000: la desviación entre pliegues subestima el ruido de un lote.
+   desviaciones de las 3 AUC-PR de pliegue, 0,961 ± 0,016 en el PSet 3) porque un pliegue tiene unas
+   330.000 filas y una semana unas 17.800: la desviación entre pliegues subestima el ruido de un lote.
 2. Banda de la tasa de alertas (verificar + retener) por semana: media ± 3 desviaciones de las semanas OOF.
 3. Umbral de promoción: desviación (ddof=1) de la pérdida neta por 1.000 transacciones entre los 3 pliegues.
 4. Soporte de entrenamiento (mínimo y máximo de cada numérica) y tasa de nulos, para las métricas de datos.

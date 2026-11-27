@@ -1,6 +1,6 @@
 # Proyecto final · Centinela: detección de fraude con tarjeta, de punta a punta
 
-> **Estado: en construcción (fases 1 a 3 de 8 terminadas).** Este README se completa al final con el orden de ejecución completo desde cero.
+> **Estado: en construcción (fases 1 a 3 de 8 terminadas; fase 4 construida, simulación pendiente).** Este README se completa al final con el orden de ejecución completo desde cero.
 
 Proyecto **Centinela**: puntuar cada transacción con tarjeta en el momento de la autorización y decidir **aprobar, verificar o retener**, en reemplazo de las reglas fijas del banco.
 
@@ -127,6 +127,38 @@ pytest tests -v            # 16 pasan y 1 xfail esperado (falla conocida del mod
 - `cd.yml`: cuando `ci` termina **en verde** para un push a **`master`** (la rama por defecto del fork; el enunciado dice `main`), publica la imagen en **GitHub Container Registry** como `ghcr.io/anrozoom/centinela-api:<hash del commit>` y `:latest`. El `docker-compose.yml` usa esa imagen (variable `API_IMAGEN`).
 - **El código se despliega solo, pero el modelo no.** Promover un modelo cambia decisiones sobre dinero y clientes reales, así que exige comparar champion y challenger con la regla de promoción y la aprobación de una persona (fase 5). Por eso el modelo vive en MLflow y la imagen lo carga por alias.
 - **Qué queda fuera de CI:** Snowflake, Kestra, Spark y el servidor de MLflow (no son accesibles desde GitHub). La API se prueba con el modelo del fixture y sin registro en Snowflake.
+
+## Fase 4 · Simulación de producción, monitoreo y alertas
+
+Diseño completo, con cifras: [docs/simulacion/diseno_deriva.md](docs/simulacion/diseno_deriva.md).
+
+- **Lotes:** la partición de prueba (jul-dic 2020) en 26 lotes semanales; el target de un lote llega 2 pasos después.
+- **Deriva inducida:** D1, deriva de datos, desde el lote 10 (cierre del comercio presencial: 70 % menos legítimas
+  presenciales; la prevalencia sube). D2, deriva conceptual, desde el lote 14 (la mitad de los fraudes, con un monto típico y de día).
+- **Flujos de Kestra** (`centinela.produccion`): `produccion_lotes` recorre los pasos; en cada uno, el lote pasa por la API
+  y llega el target del lote *k − 2*. Después llama a `monitoreo`, que calcula las métricas de sistema, modelo, datos
+  (PSI, KS y chi-cuadrado) y desempeño, emite las alertas y, si toca, llama a `reentrenamiento`, que se detiene en una **pausa de aprobación**.
+- **Umbrales** calibrados solo con la CV del PSet 3 (`monitoreo/calibrar_umbrales.py` → `docs/monitoreo/umbrales.json`).
+  Catálogo de alertas con la plantilla métrica | umbral | ventana | severidad | receptor | acción: `monitoreo/alertas.py`.
+- **Tablas** en `CENTINELA.PRODUCCION`: `LOTES`, `TARGETS`, `TARGETS_LLEGADOS`, `LOTES_RESUMEN`, `SIMULACION`, `PREDICCIONES`,
+  `SOLICITUDES`, `MONITOREO`, `ALERTAS` y `REENTRENAMIENTOS`. Cada paso es idempotente y solo toca filas posteriores al inicio
+  de la simulación vigente (las 204 predicciones de prueba de la fase 2 nunca se tocan).
+
+```bash
+# una vez (desde proyecto_final/)
+python monitoreo/calibrar_umbrales.py           # umbrales (~3 min)
+docker compose build ml                         # imagen centinela-ml:1.0 de las tareas
+python simulacion/construir_lotes.py            # lotes con la deriva -> PRODUCCION.LOTES/TARGETS
+bash scripts/generar_secretos_kestra.sh && docker compose up -d kestra   # incluye ADMIN_TOKEN
+bash kestra/desplegar_flows.sh
+# simulación (sigue en Kestra aunque se cierre la terminal)
+bash scripts/simular_produccion.sh 0 25
+bash scripts/esperar_ejecucion.sh <id>          # termina al llegar a una pausa o al final
+```
+
+**Aprobar o rechazar una promoción:** en Kestra, abre *Executions* y entra en la ejecución de `reentrenamiento` en
+estado `PAUSED`. El log de la tarea `aviso` muestra la recomendación de la regla. Pulsa **Resume**, elige `aprobar`
+(true o false), escribe el motivo y confirma. La simulación continúa sola.
 
 ## Snowflake
 

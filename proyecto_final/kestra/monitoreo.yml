@@ -1,0 +1,86 @@
+id: monitoreo
+namespace: centinela.produccion
+description: |
+  Monitoreo de un paso (lo llama produccion_lotes.yml después de cada lote; también se puede ejecutar a mano
+  con un paso ya simulado). monitoreo/monitorear.py calcula las métricas de sistema, modelo, datos (PSI, KS,
+  chi-cuadrado) y desempeño del lote cuyo target llegó, las guarda en PRODUCCION.MONITOREO y evalúa el
+  catálogo de monitoreo/alertas.py (PRODUCCION.ALERTAS). Las alertas de severidad media o mayor salen en
+  este log con nivel WARN; el disparo de reentrenamiento (2 lotes del champion vigente bajo el umbral, o el
+  calendario) lanza reentrenamiento.yml y espera su decisión.
+
+labels:
+  proyecto: centinela
+  fase: monitoreo
+
+inputs:
+  - id: paso
+    type: INT
+  - id: git_commit
+    type: STRING
+    defaults: desconocido
+
+tasks:
+  - id: monitorear
+    type: io.kestra.plugin.scripts.shell.Commands
+    containerImage: centinela-ml:1.0
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      pullPolicy: NEVER
+      user: "1000:1000"
+      networkMode: centinela_red
+      volumes:
+        - "{{ envs.proyecto_dir }}:/proyecto"
+        - "{{ envs.proyecto_dir }}/secrets:/secrets:ro"
+      memory:
+        memory: "3GB"
+    env:
+      API_URL: http://api:8000
+      CENTINELA_MLFLOW_URI: http://mlflow:5000
+      SNOWFLAKE_ACCOUNT: "{{ secret('SNOWFLAKE_ACCOUNT') }}"
+      SNOWFLAKE_USER: "{{ secret('SNOWFLAKE_USER') }}"
+      SNOWFLAKE_ROLE: "{{ secret('SNOWFLAKE_ROLE') }}"
+      SNOWFLAKE_WAREHOUSE: "{{ secret('SNOWFLAKE_WAREHOUSE') }}"
+      SNOWFLAKE_DATABASE: "{{ secret('SNOWFLAKE_DATABASE') }}"
+      SNOWFLAKE_PRIVATE_KEY_PATH: /secrets/snowflake_key.p8
+      SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: "{{ secret('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+    retry:
+      type: constant
+      interval: PT20S
+      maxAttempts: 3
+    timeout: PT15M
+    commands:
+      - python /proyecto/monitoreo/monitorear.py --paso {{ inputs.paso }}
+
+  - id: avisar_alertas
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{ outputs.monitorear.vars.n_alertas_graves > 0 }}"
+    then:
+      - id: alertas
+        type: io.kestra.plugin.core.log.Log
+        level: WARN
+        message: "ALERTAS del paso {{ inputs.paso }} ({{ outputs.monitorear.vars.n_alertas_graves }} de severidad media o mayor): {{ outputs.monitorear.vars.resumen_alertas }}"
+
+  - id: disparo
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{ outputs.monitorear.vars.disparo != 'ninguno' }}"
+    then:
+      - id: avisar_disparo
+        type: io.kestra.plugin.core.log.Log
+        level: WARN
+        message: "Reentrenamiento disparado en el paso {{ inputs.paso }} por {{ outputs.monitorear.vars.disparo }} (champion v{{ outputs.monitorear.vars.version_champion }})."
+      - id: reentrenar
+        type: io.kestra.plugin.core.flow.Subflow
+        namespace: centinela.produccion
+        flowId: reentrenamiento
+        inputs:
+          paso: "{{ inputs.paso }}"
+          motivo: "{{ outputs.monitorear.vars.disparo }}"
+          git_commit: "{{ inputs.git_commit }}"
+        wait: true
+        transmitFailed: true
+
+errors:
+  - id: registrar_falla
+    type: io.kestra.plugin.core.log.Log
+    level: ERROR
+    message: "El monitoreo del paso {{ inputs.paso }} falló en {{ errorLogs()[0]['taskId'] ?? 'desconocida' }} (ejecución {{ execution.id }})."

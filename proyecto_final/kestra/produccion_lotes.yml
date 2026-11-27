@@ -1,0 +1,92 @@
+id: produccion_lotes
+namespace: centinela.produccion
+description: |
+  Simulación de producción, lote por lote (26 lotes semanales de jul-dic 2020, docs/simulacion/diseno_deriva.md).
+  En cada paso k (en orden, uno a la vez):
+    1. lote        el lote k (PRODUCCION.LOTES, en Snowflake) pasa por la API: 200 transacciones una por una a
+                   POST /predecir y el resto a POST /predecir_lote. La API registra cada predicción en
+                   PRODUCCION.PREDICCIONES. Llega el target del lote k - 2 (PRODUCCION.TARGETS_LLEGADOS).
+    2. monitoreo   subflujo monitoreo.yml: métricas de sistema, modelo, datos y desempeño, alertas y, si toca,
+                   el subflujo reentrenamiento.yml (con la pausa de aprobación). La simulación ESPERA la decisión.
+  Antes, una vez:  python simulacion/construir_lotes.py   (lotes con la deriva D1 y D2).
+  Lanzar:          bash scripts/simular_produccion.sh [paso_inicio] [paso_fin]
+  Cada paso es idempotente: si se repite, reemplaza sus propias predicciones y su monitoreo.
+
+labels:
+  proyecto: centinela
+  fase: produccion
+
+inputs:
+  - id: paso_inicio
+    type: INT
+    defaults: 0
+  - id: paso_fin
+    type: INT
+    defaults: 25
+    description: Último paso (inclusive).
+  - id: git_commit
+    type: STRING
+    defaults: desconocido
+    description: Commit del código (lo pasa scripts/simular_produccion.sh); queda en las corridas de reentrenamiento.
+
+# Una sola simulación a la vez: dos recorridos en paralelo mezclarían los lotes.
+concurrency:
+  limit: 1
+  behavior: QUEUE
+
+tasks:
+  - id: pasos
+    type: io.kestra.plugin.core.flow.Loop
+    values: "{{ range(inputs.paso_inicio, inputs.paso_fin) }}"
+    concurrencyLimit: 1
+    tasks:
+      - id: lote
+        type: io.kestra.plugin.scripts.shell.Commands
+        containerImage: centinela-ml:1.0
+        taskRunner:
+          type: io.kestra.plugin.scripts.runner.docker.Docker
+          pullPolicy: NEVER
+          user: "1000:1000"
+          networkMode: centinela_red              # llega a http://api:8000 y http://mlflow:5000
+          volumes:
+            - "{{ envs.proyecto_dir }}:/proyecto"
+            - "{{ envs.proyecto_dir }}/secrets:/secrets:ro"
+          memory:
+            memory: "3GB"
+        env:
+          API_URL: http://api:8000
+          CENTINELA_MLFLOW_URI: http://mlflow:5000
+          GIT_COMMIT: "{{ inputs.git_commit }}"
+          SNOWFLAKE_ACCOUNT: "{{ secret('SNOWFLAKE_ACCOUNT') }}"
+          SNOWFLAKE_USER: "{{ secret('SNOWFLAKE_USER') }}"
+          SNOWFLAKE_ROLE: "{{ secret('SNOWFLAKE_ROLE') }}"
+          SNOWFLAKE_WAREHOUSE: "{{ secret('SNOWFLAKE_WAREHOUSE') }}"
+          SNOWFLAKE_DATABASE: "{{ secret('SNOWFLAKE_DATABASE') }}"
+          SNOWFLAKE_PRIVATE_KEY_PATH: /secrets/snowflake_key.p8
+          SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: "{{ secret('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+        description: El lote del paso pasa por la API y llega el target del lote de 2 pasos atrás.
+        retry:
+          type: constant
+          interval: PT20S
+          maxAttempts: 3
+        timeout: PT20M
+        commands:
+          - python /proyecto/simulacion/ejecutar_paso.py --paso {{ item.value }}
+
+      - id: monitoreo
+        type: io.kestra.plugin.core.flow.Subflow
+        namespace: centinela.produccion
+        flowId: monitoreo
+        inputs:
+          paso: "{{ item.value }}"
+          git_commit: "{{ inputs.git_commit }}"
+        wait: true
+        transmitFailed: true
+
+errors:
+  - id: registrar_falla
+    type: io.kestra.plugin.core.log.Log
+    level: ERROR
+    message: >-
+      La simulación se detuvo en la tarea {{ errorLogs()[0]['taskId'] ?? 'desconocida' }} (ejecución {{ execution.id }}).
+      Cada paso es idempotente: relanzar desde ese paso con paso_inicio.

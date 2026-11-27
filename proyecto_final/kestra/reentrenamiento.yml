@@ -1,0 +1,123 @@
+id: reentrenamiento
+namespace: centinela.produccion
+description: |
+  Reentrenamiento con aprobación humana (src/reentrenar.py). Lo dispara monitoreo.yml por desempeño
+  (2 lotes del champion vigente con AUC-PR bajo el umbral semanal de la CV) o por calendario (pasos 12 y 24).
+    1. entrenar    challenger con el entrenamiento del PSet 3 + los lotes etiquetados, salvo el último (los 4
+                   más recientes pesan 5 veces más); mismos hiperparámetros del champion, sin tuning. Nueva
+                   versión de centinela-modelo con alias challenger; champion y challenger se evalúan en el
+                   último lote etiquetado, que ninguno vio.
+    2. aprobacion  PAUSA: el log de "aviso" muestra la recomendación de la regla (promover si la mejora de la
+                   pérdida neta por 1.000 supera la desviación entre pliegues de la CV). Se reanuda en la
+                   interfaz: Executions -> esta ejecución -> botón Resume -> aprobar (true/false) y motivo.
+    3. decidir     aprobado: el alias champion pasa a la versión nueva y la API la carga sin reconstruir la
+                   imagen (POST /recargar, verificado en GET /modelo). Rechazado: se registra el motivo.
+
+labels:
+  proyecto: centinela
+  fase: reentrenamiento
+
+inputs:
+  - id: paso
+    type: INT
+  - id: motivo
+    type: STRING
+    description: desempeño o calendario
+  - id: git_commit
+    type: STRING
+    defaults: desconocido
+
+tasks:
+  - id: entrenar
+    type: io.kestra.plugin.scripts.shell.Commands
+    containerImage: centinela-ml:1.0
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      pullPolicy: NEVER
+      user: "1000:1000"
+      networkMode: centinela_red
+      volumes:
+        - "{{ envs.proyecto_dir }}:/proyecto"
+        - "{{ envs.proyecto_dir }}/secrets:/secrets:ro"
+      memory:
+        memory: "3GB"
+    env:
+      API_URL: http://api:8000
+      CENTINELA_MLFLOW_URI: http://mlflow:5000
+      GIT_COMMIT: "{{ inputs.git_commit }}"
+      ADMIN_TOKEN: "{{ secret('ADMIN_TOKEN') }}"
+      SNOWFLAKE_ACCOUNT: "{{ secret('SNOWFLAKE_ACCOUNT') }}"
+      SNOWFLAKE_USER: "{{ secret('SNOWFLAKE_USER') }}"
+      SNOWFLAKE_ROLE: "{{ secret('SNOWFLAKE_ROLE') }}"
+      SNOWFLAKE_WAREHOUSE: "{{ secret('SNOWFLAKE_WAREHOUSE') }}"
+      SNOWFLAKE_DATABASE: "{{ secret('SNOWFLAKE_DATABASE') }}"
+      SNOWFLAKE_PRIVATE_KEY_PATH: /secrets/snowflake_key.p8
+      SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: "{{ secret('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+    retry:
+      type: constant
+      interval: PT30S
+      maxAttempts: 2
+    timeout: PT30M
+    commands:
+      - python /proyecto/src/reentrenar.py entrenar --paso {{ inputs.paso }} --motivo {{ inputs.motivo }}
+
+  - id: aviso
+    type: io.kestra.plugin.core.log.Log
+    level: WARN
+    message: >-
+      APROBACIÓN REQUERIDA. {{ outputs.entrenar.vars.mensaje }}.
+      Para decidir: botón Resume de esta ejecución -> aprobar = true (promover la v{{ outputs.entrenar.vars.challenger_version }})
+      o false (el champion sigue en la v{{ outputs.entrenar.vars.champion_version }}), y el motivo.
+
+  - id: aprobacion
+    type: io.kestra.plugin.core.flow.Pause
+    description: Decisión humana sobre la promoción del challenger (ver el log de la tarea aviso).
+    onResume:
+      - id: aprobar
+        type: BOOL
+        required: true
+        description: true = promover el challenger a champion; false = rechazar
+      - id: motivo
+        type: STRING
+        required: false
+        description: Motivo de la decisión (queda en MLflow y en PRODUCCION.REENTRENAMIENTOS)
+
+  - id: decidir
+    type: io.kestra.plugin.scripts.shell.Commands
+    containerImage: centinela-ml:1.0
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      pullPolicy: NEVER
+      user: "1000:1000"
+      networkMode: centinela_red
+      volumes:
+        - "{{ envs.proyecto_dir }}:/proyecto"
+        - "{{ envs.proyecto_dir }}/secrets:/secrets:ro"
+      memory:
+        memory: "3GB"
+    env:
+      API_URL: http://api:8000
+      CENTINELA_MLFLOW_URI: http://mlflow:5000
+      GIT_COMMIT: "{{ inputs.git_commit }}"
+      ADMIN_TOKEN: "{{ secret('ADMIN_TOKEN') }}"
+      SNOWFLAKE_ACCOUNT: "{{ secret('SNOWFLAKE_ACCOUNT') }}"
+      SNOWFLAKE_USER: "{{ secret('SNOWFLAKE_USER') }}"
+      SNOWFLAKE_ROLE: "{{ secret('SNOWFLAKE_ROLE') }}"
+      SNOWFLAKE_WAREHOUSE: "{{ secret('SNOWFLAKE_WAREHOUSE') }}"
+      SNOWFLAKE_DATABASE: "{{ secret('SNOWFLAKE_DATABASE') }}"
+      SNOWFLAKE_PRIVATE_KEY_PATH: /secrets/snowflake_key.p8
+      SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: "{{ secret('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+    retry:
+      type: constant
+      interval: PT30S
+      maxAttempts: 2
+    timeout: PT10M
+    commands:
+      # El motivo es texto libre: viaja en base64 para que ninguna comilla rompa el comando.
+      - python /proyecto/src/reentrenar.py decidir --paso {{ inputs.paso }} --aprobar {{ outputs.aprobacion.onResume.aprobar }} --motivo-b64 "{{ (outputs.aprobacion.onResume.motivo ?? '') | base64encode }}"
+
+errors:
+  - id: registrar_falla
+    type: io.kestra.plugin.core.log.Log
+    level: ERROR
+    message: "El reentrenamiento del paso {{ inputs.paso }} falló en {{ errorLogs()[0]['taskId'] ?? 'desconocida' }} (ejecución {{ execution.id }}). El champion no cambió salvo que la tarea decidir haya terminado."

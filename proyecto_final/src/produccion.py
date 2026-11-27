@@ -55,6 +55,13 @@ ENTERAS = ["edad_en_transaccion", "city_pop", "n_tx_1h", "n_tx_24h", "n_tx_previ
 BOOLEANAS = ["es_nocturna", "es_fin_de_semana", "es_menor_de_edad", "es_multicategoria"]
 
 
+# Predicciones y solicitudes de LA simulación vigente: con LOTE y registradas después de su inicio
+# (PRODUCCION.SIMULACION, lo escribe simulacion/construir_lotes.py). Así nunca se tocan las predicciones de
+# prueba de la fase 2 (antes del inicio) ni las de una simulación anterior.
+INICIO_SIM_SQL = "(SELECT MAX(INICIO_UTC) FROM PRODUCCION.SIMULACION)"
+FILTRO_SIM = f"LOTE IS NOT NULL AND TS_UTC >= {INICIO_SIM_SQL}"
+
+
 def lote_de(ts: pd.Series) -> np.ndarray:
     """Número de lote semanal (0..25) de cada timestamp de la partición de prueba."""
     return np.minimum(((ts.dt.normalize() - INICIO).dt.days // 7).to_numpy(), N_LOTES - 1)
@@ -122,9 +129,13 @@ class Snowflake:
 
 # --------------------------------------------------------------------------------------- MLflow
 def configurar_mlflow():
-    """MLFLOW_TRACKING_URI del entorno (contenedores: http://mlflow:5000) o de proyecto_final/.env."""
+    """Servidor de MLflow del proyecto final, nunca el del devcontainer (que define MLFLOW_TRACKING_URI=:5050).
+
+    Prioridad: CENTINELA_MLFLOW_URI (la ponen las tareas de Kestra: http://mlflow:5000) > MLFLOW_TRACKING_URI
+    de proyecto_final/.env (Codespace: http://127.0.0.1:5055) > http://127.0.0.1:5055.
+    """
     import mlflow
-    uri = os.environ.get("MLFLOW_TRACKING_URI")
+    uri = os.environ.get("CENTINELA_MLFLOW_URI")
     env = RAIZ / ".env"
     if not uri and env.exists():
         uri = next((l.split("=", 1)[1].strip() for l in env.read_text().splitlines()
