@@ -1,6 +1,6 @@
 # Proyecto final · Centinela: detección de fraude con tarjeta, de punta a punta
 
-> **Estado: en construcción (fases 1 a 3 de 8 terminadas; fase 4 construida, simulación pendiente).** Este README se completa al final con el orden de ejecución completo desde cero.
+> **Estado: en construcción (fases 1 a 3 de 8 terminadas; fase 4 terminada: simulación completa).** Este README se completa al final con el orden de ejecución completo desde cero.
 
 Proyecto **Centinela**: puntuar cada transacción con tarjeta en el momento de la autorización y decidir **aprobar, verificar o retener**, en reemplazo de las reglas fijas del banco.
 
@@ -130,7 +130,9 @@ pytest tests -v            # 16 pasan y 1 xfail esperado (falla conocida del mod
 
 ## Fase 4 · Simulación de producción, monitoreo y alertas
 
-Diseño completo, con cifras: [docs/simulacion/diseno_deriva.md](docs/simulacion/diseno_deriva.md).
+Diseño completo, con cifras: [docs/simulacion/diseno_deriva.md](docs/simulacion/diseno_deriva.md). Incidentes y su resolución:
+[docs/simulacion/incidentes.md](docs/simulacion/incidentes.md).
+Resultados (alertas, reentrenamientos y negocio por lote): [docs/simulacion/resultados.md](docs/simulacion/resultados.md).
 
 - **Lotes:** la partición de prueba (jul-dic 2020) en 26 lotes semanales; el target de un lote llega 2 pasos después.
 - **Deriva inducida:** D1, deriva de datos, desde el lote 10 (cierre del comercio presencial: 70 % menos legítimas
