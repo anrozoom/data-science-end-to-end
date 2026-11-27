@@ -1,6 +1,6 @@
 # Proyecto final · Centinela: detección de fraude con tarjeta, de punta a punta
 
-> **Estado: en construcción (fases 1 a 3 de 8 terminadas; fases 4 y 5 terminadas).** Este README se completa al final con el orden de ejecución completo desde cero.
+> **Estado: en construcción (fases 1 a 3 de 8 terminadas; fases 4 a 6 terminadas).** Este README se completa al final con el orden de ejecución completo desde cero.
 
 Proyecto **Centinela**: puntuar cada transacción con tarjeta en el momento de la autorización y decidir **aprobar, verificar o retener**, en reemplazo de las reglas fijas del banco.
 
@@ -176,6 +176,19 @@ estado `PAUSED`. El log de la tarea `aviso` muestra la recomendación de la regl
 - **Scripts del video** (guion con tiempos medidos en [docs/demos/guion_video.md](docs/demos/guion_video.md)):
   `demo_deriva.sh` (1 min 6 s), `demo_reentrenamiento.sh` (~35 s hasta la pausa), `demo_rollback.sh` (~30 s) y
   `demo_respaldo.sh` (< 1 s).
+
+## Fase 6 · Tablero de monitoreo (Streamlit)
+
+`http://localhost:8501`: servicio `tablero` del `docker-compose.yml` (se levanta con `docker compose up -d`). Muestra,
+lote por lote, el desempeño y el negocio (AUC-PR frente al umbral, pérdida por 1.000 del modelo frente a las reglas y a
+no hacer nada), la deriva (mapa de PSI por variable y lote), el modelo (tasa de cada decisión y de alertas, con su banda),
+el sistema (latencia p50 y p95, volumen frente a 2019, errores) y las tablas de alertas y reentrenamientos. Las franjas
+grises marcan D1 y D2, y las líneas verticales, los reentrenamientos (continua = aprobado, punteada = rechazado).
+
+- **Fuente:** Snowflake (`CENTINELA.PRODUCCION`, simulación vigente) y, sin conexión, los CSV de `docs/`
+  (`monitoreo.csv`, `alertas.csv`, `simulacion/reentrenamientos_simulacion.csv`), que se regeneran con
+  `python scripts/exportar_docs.py`. Para forzar los CSV: `TABLERO_FUENTE=csv docker compose up -d tablero`.
+- Verificado con el `AppTest` de Streamlit, con las dos fuentes: sin excepciones y con las mismas cifras.
 
 ## Snowflake
 

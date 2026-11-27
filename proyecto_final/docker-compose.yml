@@ -188,6 +188,26 @@ services:
       - ./secrets:/secrets:ro
     mem_limit: 1g
 
+  # ------------------------------------------------------------------ tablero
+  # Monitoreo lote por lote (Streamlit). Lee Snowflake; sin conexión (o TABLERO_FUENTE=csv), los CSV de docs/.
+  tablero:
+    build: ./tablero
+    image: centinela-tablero:1.0
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      FUENTE_DATOS: "${TABLERO_FUENTE:-auto}"
+      DOCS_DIR: /app/docs
+      SNOWFLAKE_PRIVATE_KEY_PATH: /secrets/snowflake_key.p8
+    volumes:
+      - ./docs:/app/docs:ro
+      - ./secrets:/secrets:ro
+    ports:
+      - "8501:8501"
+    mem_limit: 1g
+    restart: unless-stopped
+
   # Imagen de las tareas de ML que lanza Kestra (simulación, monitoreo, reentrenamiento). Solo se construye.
   ml:
     build: ./simulacion
