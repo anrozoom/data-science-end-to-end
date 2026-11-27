@@ -1,5 +1,7 @@
 # Resultados del diagnóstico de calidad (RAW)
 
+> Nota del proyecto final: copia de la evidencia del PSet 2 (`pset_2/docs/`, tag `pset-02`). Los enlaces apuntan a los archivos de `proyecto_final/`; `backfill_paralelo.sh` y `flows/ingesta_diaria.yml` se reemplazaron por `kestra/ingesta.yml` en la fase 1 (`docs/cambios.md`) y los enlaces a ellos llevan a su versión original en `pset_2/`.
+
 > Generado automáticamente por `scripts/diagnostico_calidad.py` el 2026-11-16 01:14 UTC sobre **1,852,394 filas** de `CENTINELA.RAW.TRANSACCIONES`. No editar a mano: volver a correr el script.
 
 

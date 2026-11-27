@@ -1,5 +1,7 @@
 # Limitaciones y problemas no resueltos
 
+> Nota del proyecto final: copia de la evidencia del PSet 2 (`pset_2/docs/`, tag `pset-02`). Los enlaces apuntan a los archivos de `proyecto_final/`; `backfill_paralelo.sh` y `flows/ingesta_diaria.yml` se reemplazaron por `kestra/ingesta.yml` en la fase 1 (`docs/cambios.md`) y los enlaces a ellos llevan a su versión original en `pset_2/`.
+
 ## Datos
 
 | Limitación | Evidencia | Impacto | Qué haría falta |
@@ -16,7 +18,7 @@
 
 | Limitación | Detalle | Qué haría falta |
 |---|---|---|
-| **El backfill nativo del trigger es secuencial en Kestra 2.0.7** | Medido: ~1 ejecución cada 5,5 s y nunca más de una corriendo, aunque el flow permite 16. 731 días tomarían ~67 min | Para el histórico se usó [`kestra/backfill_paralelo.sh`](../kestra/backfill_paralelo.sh), que crea una ejecución por fecha del mismo flow (8 min 12 s). El backfill nativo queda para recuperar pocos días |
+| **El backfill nativo del trigger es secuencial en Kestra 2.0.7** | Medido: ~1 ejecución cada 5,5 s y nunca más de una corriendo, aunque el flow permite 16. 731 días tomarían ~67 min | Para el histórico se usó [`pset_2/kestra/backfill_paralelo.sh`](../../../pset_2/kestra/backfill_paralelo.sh), que crea una ejecución por fecha del mismo flow (8 min 12 s). El backfill nativo queda para recuperar pocos días |
 | **La "ingesta diaria" es simulada** | La fuente es un archivo estático. El trigger diario de fechas actuales (2026) termina con 0 filas; el histórico entra por backfill | Con una fuente real, el flow leería el extracto del día anterior en vez de un archivo pre-dividido |
 | **Orquestador local** | Kestra corre en el Codespace: cuando el Codespace se apaga, el `Schedule` no dispara. Al volver, `recoverMissedSchedules: NONE` no recupera los días perdidos (se recuperan con backfill) | Desplegar Kestra en un servidor siempre encendido |
 | **dbt y Spark no están orquestados por Kestra** | Hoy se ejecutan con `docker compose run --rm dbt build` y `bash spark/ejecutar_obt.sh` después de la ingesta | Agregar al flow tareas que corran dbt y Spark al terminar la carga del día (o un flow aparte que dependa del de ingesta) |

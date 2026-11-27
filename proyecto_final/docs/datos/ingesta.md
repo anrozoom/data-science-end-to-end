@@ -1,13 +1,15 @@
 # Ingesta con Kestra: fuente → RAW
 
+> Nota del proyecto final: copia de la evidencia del PSet 2 (`pset_2/docs/`, tag `pset-02`). Los enlaces apuntan a los archivos de `proyecto_final/`; `backfill_paralelo.sh` y `flows/ingesta_diaria.yml` se reemplazaron por `kestra/ingesta.yml` en la fase 1 (`docs/cambios.md`) y los enlaces a ellos llevan a su versión original en `pset_2/`.
+
 ## Resumen
 
 | Aspecto | Implementación |
 |---|---|
 | Fuente | Kaggle `kartik2112/fraud-detection` (Sparkov, CC0): `fraudTrain.csv` y `fraudTest.csv`, descargados con la API de Kaggle (`KAGGLE_API_TOKEN`, paquete `kaggle` 2.2.5) |
-| Flow | [`kestra/flows/ingesta_diaria.yml`](../kestra/flows/ingesta_diaria.yml) (`centinela.ingesta.ingesta_diaria`) |
-| Imagen de la tarea | [`kestra/ingesta/Dockerfile`](../kestra/ingesta/Dockerfile) → `centinela-ingesta:1.0` (Python 3.11, `snowflake-connector-python` 4.8.0) |
-| Script | [`kestra/ingesta/cargar_dia.py`](../kestra/ingesta/cargar_dia.py) |
+| Flow | [`pset_2/kestra/flows/ingesta_diaria.yml`](../../../pset_2/kestra/flows/ingesta_diaria.yml) (`centinela.ingesta.ingesta_diaria`) |
+| Imagen de la tarea | [`kestra/ingesta/Dockerfile`](../../kestra/ingesta/Dockerfile) → `centinela-ingesta:1.0` (Python 3.11, `snowflake-connector-python` 4.8.0) |
+| Script | [`kestra/ingesta/cargar_dia.py`](../../kestra/ingesta/cargar_dia.py) |
 | Destino | `CENTINELA.RAW.TRANSACCIONES` (todo `VARCHAR` + `_SOURCE_FILE`, `_LOAD_DATE`, `_INGESTED_AT`) |
 | Granularidad | **Una ejecución = un día de transacciones** (~2.538 filas por día en promedio) |
 | Trigger | `Schedule` diario, `cron: "0 2 * * *"` (02:00 UTC), con `recoverMissedSchedules: NONE` |
@@ -37,7 +39,7 @@
 | Un día (2019-01-01), con descarga y división de la fuente | `6vAsmyLSNLbj8DrcvKBwqF` | `SUCCESS` en 58 s. Logs: `fraudTrain.csv: 1296675 filas`, `fraudTest.csv: 555719 filas`, 730 archivos diarios, 0 filas sin fecha; **2.414 filas cargadas (archivo: 2.414)** |
 | Retry + idempotencia (mismo día, `simular_falla = true`) | `1SCl3neqqi8gwhsh41auhz` | Intento 0 `FAILED` (falla simulada) → intento 1 `SUCCESS`: "ya tenía 2414 filas: se reemplazan", **2.414 filas después de la re-ejecución** (no 4.828) |
 | Backfill nativo del trigger (2019-01-01 → 2021-01-01) | 26 ejecuciones, etiqueta `tipo=backfill` | Las 26 en `SUCCESS` (2019-01-01 a 2019-01-26). Kestra 2.0.7 las emitió **de a una** (~1 cada 5,5 s, nunca más de una corriendo): el backfill completo habría tomado ~67 min. Se pausó |
-| Backfill en paralelo de los días restantes ([`kestra/backfill_paralelo.sh`](../kestra/backfill_paralelo.sh)) | 705 ejecuciones, etiqueta `tipo=backfill-paralelo` | Las 705 en `SUCCESS`, **0 fallidas**, de 01:05:42 a 01:13:54 UTC (**8 min 12 s**) |
+| Backfill en paralelo de los días restantes ([`pset_2/kestra/backfill_paralelo.sh`](../../../pset_2/kestra/backfill_paralelo.sh)) | 705 ejecuciones, etiqueta `tipo=backfill-paralelo` | Las 705 en `SUCCESS`, **0 fallidas**, de 01:05:42 a 01:13:54 UTC (**8 min 12 s**) |
 | Total en RAW | — | **1.852.394 filas**, 730 días con datos (ver [`calidad_datos.md`](calidad_datos.md)) |
 
 **Decisión sobre el backfill:** el backfill nativo del trigger funciona y queda como mecanismo estándar para recuperar algunos días. Para el histórico completo se usó el mismo flow, con la misma granularidad diaria, lanzando una ejecución por fecha con el input `fecha`. Así se aprovecha la concurrencia del flow: 731 días en ~11 minutos en total.

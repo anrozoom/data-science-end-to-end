@@ -209,7 +209,7 @@ el sistema (latencia p50 y p95, volumen frente a 2019, errores) y las tablas de 
 grises marcan D1 y D2, y las líneas verticales, los reentrenamientos (continua = aprobado, punteada = rechazado).
 
 - **Fuente:** Snowflake (`CENTINELA.PRODUCCION`, simulación vigente) y, sin conexión, los CSV de `docs/`
-  (`monitoreo.csv`, `alertas.csv`, `simulacion/reentrenamientos_simulacion.csv`), que se regeneran con
+  (`docs/monitoreo.csv`, `docs/alertas.csv`, `docs/simulacion/reentrenamientos_simulacion.csv`), que se regeneran con
   `python scripts/exportar_docs.py`. Para forzar los CSV: `TABLERO_FUENTE=csv docker compose up -d tablero`.
 - Verificado con el `AppTest` de Streamlit, con las dos fuentes: sin excepciones y con las mismas cifras.
 

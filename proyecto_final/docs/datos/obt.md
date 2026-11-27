@@ -1,8 +1,10 @@
 # OBT con Spark
 
+> Nota del proyecto final: copia de la evidencia del PSet 2 (`pset_2/docs/`, tag `pset-02`). Los enlaces apuntan a los archivos de `proyecto_final/`; `backfill_paralelo.sh` y `flows/ingesta_diaria.yml` se reemplazaron por `kestra/ingesta.yml` en la fase 1 (`docs/cambios.md`) y los enlaces a ellos llevan a su versión original en `pset_2/`.
+
 ## Cómo se construye
 
-- **Job:** [`spark/construir_obt.py`](../spark/construir_obt.py), lanzado con [`spark/ejecutar_obt.sh`](../spark/ejecutar_obt.sh).
+- **Job:** [`spark/construir_obt.py`](../../spark/construir_obt.py), lanzado con [`spark/ejecutar_obt.sh`](../../spark/ejecutar_obt.sh).
 - **Ejecución:** `spark-submit` dentro de `spark-master` (driver en modo cliente) contra el clúster del compose (1 worker, 2 núcleos, 1.800 MB para el ejecutor).
 - **Versiones fijas:** Spark 3.5.3 (imagen oficial `apache/spark:3.5.3-java17-python3`), `spark-snowflake_2.12:3.1.1` (compilado para Spark 3.5) y `snowflake-jdbc:3.19.0` (la versión que declara ese conector).
 - **Autenticación:** par de llaves. El conector solo acepta la llave sin cifrar, así que el driver la descifra en memoria con `openssl` (la passphrase va por variable de entorno, no por argumento) y nunca la escribe a disco.
@@ -54,7 +56,7 @@ Resultado completo en [`obt_validaciones.json`](obt_validaciones.json).
 | Ventanas coherentes (diferencias ≥ 0, `n_tx_1h` ≤ `n_tx_24h`) | 0 incoherentes | 0 | ✅ |
 | Filas escritas en Snowflake == `count(OBT)` | 1.852.394 | 1.852.394 | ✅ |
 
-**Validación independiente en SQL** ([`scripts/validar_obt_sql.py`](../scripts/validar_obt_sql.py), resultado en [`obt_validacion_sql.txt`](obt_validacion_sql.txt)): en una muestra aleatoria de 5.000 transacciones de la OBT, Snowflake recalculó `n_tx_24h` y `n_tx_1h` contando solo las transacciones del mismo cliente en `[t − 86.400, t − 1]` y `[t − 3.600, t − 1]` segundos. **Coinciden 5.000 de 5.000** en las dos variables. Si Spark hubiera incluido la fila actual o filas futuras, los conteos no coincidirían.
+**Validación independiente en SQL** ([`scripts/validar_obt_sql.py`](../../scripts/validar_obt_sql.py), resultado en [`obt_validacion_sql.txt`](obt_validacion_sql.txt)): en una muestra aleatoria de 5.000 transacciones de la OBT, Snowflake recalculó `n_tx_24h` y `n_tx_1h` contando solo las transacciones del mismo cliente en `[t − 86.400, t − 1]` y `[t − 3.600, t − 1]` segundos. **Coinciden 5.000 de 5.000** en las dos variables. Si Spark hubiera incluido la fila actual o filas futuras, los conteos no coincidirían.
 
 ## Cuándo usar el star schema y cuándo la OBT en Centinela
 
@@ -71,5 +73,5 @@ La OBT **no reemplaza** al star schema: es una vista desnormalizada y derivada, 
 ## Capturas para el documento
 
 1. **UI del master de Spark** (puerto 8081, agrégalo en Ports): en "Completed Applications" aparece `centinela-obt` con el worker y su duración.
-2. **Terminal** con el JSON de validaciones que imprime `bash spark/ejecutar_obt.sh`. Para no recalcular, basta con mostrar `docs/obt_validaciones.json`.
+2. **Terminal** con el JSON de validaciones que imprime `bash spark/ejecutar_obt.sh`. Para no recalcular, basta con mostrar `docs/datos/obt_validaciones.json`.
 3. **Snowsight:** `SELECT * FROM CENTINELA.OBT.TRANSACCIONES_OBT LIMIT 20;` y `SELECT COUNT(*), COUNT(DISTINCT TRANS_NUM) FROM CENTINELA.OBT.TRANSACCIONES_OBT;`

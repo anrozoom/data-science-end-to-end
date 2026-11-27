@@ -1,5 +1,13 @@
 # [Nombre de tu proyecto]
 
+> **Proyecto final (PSet 4): [`proyecto_final/`](../../proyecto_final/).** Siguiendo el enunciado en PDF, el proyecto
+> completo vive en la carpeta `proyecto_final/` de la raíz del repositorio: ingesta de punta a punta en Kestra, API de
+> inferencia online, pruebas y CI/CD, simulación de producción con monitoreo, alertas, reentrenamiento con aprobación
+> humana y rollback, tablero, ética y resultado de negocio. Cómo reproducirlo desde cero:
+> [`proyecto_final/README.md`](../../proyecto_final/README.md); cifras clave:
+> [`proyecto_final/docs/resumen_cifras.md`](../../proyecto_final/docs/resumen_cifras.md). Las secciones de abajo
+> resumen los PSet 2 y 3, que siguen en `pset_2/` y `pset_3/` (tags `pset-02` y `pset-03`).
+
 > Este es el README de tu proyecto: reemplaza cada sección entre corchetes a medida que avanzas. Escríbelo para alguien que clona tu fork sin haber estado en clase y necesita entender qué hace el proyecto y correrlo, no como una nota para ti.
 
 [Un párrafo: qué problema de negocio resuelve, para quién, y qué predice el modelo. Sale de tu propuesta del PSet 1, que está completa en `docs/`.]
@@ -48,4 +56,9 @@ El razonamiento completo está en [`pset_3/docs/decisiones_y_limitaciones.md`](.
 
 ## Cómo correr el servicio
 
-[Cómo se construye y se levanta el contenedor de `servicio/`, qué versión del modelo carga desde el registro, y un ejemplo de petición con su respuesta. Se completa con el PSet 4.]
+El servicio del PSet 4 está en [`proyecto_final/api/`](../../proyecto_final/api/) (FastAPI en Docker; la imagen la publica
+`cd.yml` en GHCR con el hash del commit). Se levanta con el resto de la infraestructura (`cd proyecto_final && docker compose up -d`)
+y carga `models:/centinela-modelo@champion` desde el MLflow del proyecto, resolviendo el alias cada 30 s: un rollback no
+reconstruye la imagen. Endpoints, ejemplo de petición y respuesta, y el interruptor de respaldo: sección «Fase 2» de
+[`proyecto_final/README.md`](../../proyecto_final/README.md). En la simulación de producción, el champion pasó de la v1
+a la v5 después de dos reentrenamientos aprobados ([`proyecto_final/docs/simulacion/resultados.md`](../../proyecto_final/docs/simulacion/resultados.md)).

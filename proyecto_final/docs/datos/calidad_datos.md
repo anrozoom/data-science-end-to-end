@@ -1,8 +1,10 @@
 # Calidad de datos (diagnóstico sobre RAW, antes de transformar)
 
+> Nota del proyecto final: copia de la evidencia del PSet 2 (`pset_2/docs/`, tag `pset-02`). Los enlaces apuntan a los archivos de `proyecto_final/`; `backfill_paralelo.sh` y `flows/ingesta_diaria.yml` se reemplazaron por `kestra/ingesta.yml` en la fase 1 (`docs/cambios.md`) y los enlaces a ellos llevan a su versión original en `pset_2/`.
+
 **Fuente analizada:** `CENTINELA.RAW.TRANSACCIONES`, cargada por Kestra con el backfill completo 2019-2020: **1.852.394 filas** (`fraudTrain.csv` 1.296.675 + `fraudTest.csv` 555.719), todas como texto.
 
-**Cómo se obtuvieron las cifras:** [`scripts/diagnostico_calidad.py`](../scripts/diagnostico_calidad.py) corre 19 consultas SQL sobre RAW y escribe los resultados, con el SQL exacto de cada uno, en [`calidad_resultados.md`](calidad_resultados.md). La ejecución sobre los datos completos fue el 2026-11-16 a las 01:14 UTC. Una corrida previa sobre datos parciales (1,19 M filas, a mitad del backfill) mostró los mismos patrones, y con esos resultados se diseñó la capa SILVER antes de que terminara la carga.
+**Cómo se obtuvieron las cifras:** [`scripts/diagnostico_calidad.py`](../../scripts/diagnostico_calidad.py) corre 19 consultas SQL sobre RAW y escribe los resultados, con el SQL exacto de cada uno, en [`calidad_resultados.md`](calidad_resultados.md). La ejecución sobre los datos completos fue el 2026-11-16 a las 01:14 UTC. Una corrida previa sobre datos parciales (1,19 M filas, a mitad del backfill) mostró los mismos patrones, y con esos resultados se diseñó la capa SILVER antes de que terminara la carga.
 
 ```bash
 # desde pset_2/
@@ -51,6 +53,6 @@ docker compose run --rm -v ./scripts:/scripts:ro -v ./docs:/docs --entrypoint py
 
 ## Dónde quedan implementadas
 
-- Limpieza: [`dbt/models/silver/slv_transacciones.sql`](../dbt/models/silver/slv_transacciones.sql)
-- Tipos sin reglas de negocio: [`dbt/models/bronze/brz_transacciones.sql`](../dbt/models/bronze/brz_transacciones.sql)
+- Limpieza: [`dbt/models/silver/slv_transacciones.sql`](../../dbt/models/silver/slv_transacciones.sql)
+- Tipos sin reglas de negocio: [`dbt/models/bronze/brz_transacciones.sql`](../../dbt/models/bronze/brz_transacciones.sql)
 - Tests de estas reglas: ver [`modelo_dimensional.md`](modelo_dimensional.md)

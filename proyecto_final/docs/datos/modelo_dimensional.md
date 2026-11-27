@@ -1,15 +1,17 @@
 # Transformaciones con dbt y modelo dimensional (GOLD)
 
+> Nota del proyecto final: copia de la evidencia del PSet 2 (`pset_2/docs/`, tag `pset-02`). Los enlaces apuntan a los archivos de `proyecto_final/`; `backfill_paralelo.sh` y `flows/ingesta_diaria.yml` se reemplazaron por `kestra/ingesta.yml` en la fase 1 (`docs/cambios.md`) y los enlaces a ellos llevan a su versión original en `pset_2/`.
+
 ## Capas
 
 | Capa | Modelo | Filas | Qué hace |
 |---|---|---|---|
 | RAW (`source`) | `RAW.TRANSACCIONES` | 1.852.394 | Datos tal como llegan (todo texto + auditoría), cargados por Kestra |
-| BRONZE | [`brz_transacciones`](../dbt/models/bronze/brz_transacciones.sql) | 1.852.394 | Copia 1:1 con **tipos correctos** (timestamp, number, float, date) y nombres normalizados. Sin reglas de negocio |
-| SILVER | [`slv_transacciones`](../dbt/models/silver/slv_transacciones.sql) | 1.852.394 | Limpieza ([`calidad_datos.md`](calidad_datos.md)): deduplicación por `trans_num`, quita `fraud_`, completa `zip` a 5 dígitos, filtros de validez y derivadas sin fuga (edad en la transacción, hora, día de la semana, época, distancia haversine) |
+| BRONZE | [`brz_transacciones`](../../dbt/models/bronze/brz_transacciones.sql) | 1.852.394 | Copia 1:1 con **tipos correctos** (timestamp, number, float, date) y nombres normalizados. Sin reglas de negocio |
+| SILVER | [`slv_transacciones`](../../dbt/models/silver/slv_transacciones.sql) | 1.852.394 | Limpieza ([`calidad_datos.md`](calidad_datos.md)): deduplicación por `trans_num`, quita `fraud_`, completa `zip` a 5 dígitos, filtros de validez y derivadas sin fuga (edad en la transacción, hora, día de la semana, época, distancia haversine) |
 | GOLD | `fct_transacciones` + 5 dimensiones | ver abajo | Star schema |
 
-Dependencias solo con `source()` (BRONZE → RAW) y `ref()` (el resto). Cada capa escribe en su esquema de Snowflake (`BRONZE`, `SILVER`, `GOLD`) gracias a [`macros/generate_schema_name.sql`](../dbt/macros/generate_schema_name.sql). Todas se materializan como tablas (el `dbt build` completo tarda ~12 s en un warehouse XS).
+Dependencias solo con `source()` (BRONZE → RAW) y `ref()` (el resto). Cada capa escribe en su esquema de Snowflake (`BRONZE`, `SILVER`, `GOLD`) gracias a [`macros/generate_schema_name.sql`](../../dbt/macros/generate_schema_name.sql). Todas se materializan como tablas (el `dbt build` completo tarda ~12 s en un warehouse XS).
 
 SILVER tiene las mismas filas que BRONZE porque el diagnóstico encontró **0 duplicados y 0 filas inválidas**. Las reglas quedan implementadas y probadas para cargas futuras.
 
@@ -115,8 +117,8 @@ erDiagram
 | `unique` + `not_null` en claves | `trans_num` (SILVER y hecho); `cliente_sk`, `cc_num`, `comercio_sk`, `comercio`, `categoria_sk`, `categoria`, `fecha_sk`, `fecha`, `hora_sk` |
 | `relationships` | El hecho contra **las 5 dimensiones** (`fecha_sk`, `hora_sk`, `cliente_sk`, `comercio_sk`, `categoria_sk`) |
 | `accepted_values` | `is_fraud` ∈ {0, 1} en BRONZE, SILVER y el hecho; `gender` ∈ {F, M}; `canal`; `particion_temporal` |
-| Reglas de negocio, con el test genérico propio [`valor_entre`](../dbt/tests/generic/valor_entre.sql) | `amt` > 0; edad en la transacción entre 10 y 100; distancia entre 0 y 20.000 km; hora entre 0 y 23 |
-| Reglas de negocio (tests singulares en [`dbt/tests/`](../dbt/tests/)) | `bronze_conteo_igual_a_raw` (BRONZE es 1:1); `silver_conteo_igual_a_trans_num_distintos` (la limpieza solo quita duplicados e inválidos); `gold_conteo_igual_a_silver` (el hecho conserva el grano); `silver_fechas_en_2019_2020`; `silver_merchant_sin_prefijo_fraud`; `silver_zip_cinco_digitos`; `gold_tasa_fraude_plausible` (tasa entre 0,1 % y 2 %); `gold_cliente_sin_cambios_de_atributos` (supuesto SCD 1 de `dim_cliente`) |
+| Reglas de negocio, con el test genérico propio [`valor_entre`](../../dbt/tests/generic/valor_entre.sql) | `amt` > 0; edad en la transacción entre 10 y 100; distancia entre 0 y 20.000 km; hora entre 0 y 23 |
+| Reglas de negocio (tests singulares en [`dbt/tests/`](../../dbt/tests/)) | `bronze_conteo_igual_a_raw` (BRONZE es 1:1); `silver_conteo_igual_a_trans_num_distintos` (la limpieza solo quita duplicados e inválidos); `gold_conteo_igual_a_silver` (el hecho conserva el grano); `silver_fechas_en_2019_2020`; `silver_merchant_sin_prefijo_fraud`; `silver_zip_cinco_digitos`; `gold_tasa_fraude_plausible` (tasa entre 0,1 % y 2 %); `gold_cliente_sin_cambios_de_atributos` (supuesto SCD 1 de `dim_cliente`) |
 | Sobre la fuente | `not_null` de `trans_num` y `_load_date` en RAW |
 
 **Resultado** (`docker compose run --rm dbt build`, 2026-11-16 01:15 UTC): **`PASS=75 WARN=0 ERROR=0 SKIP=0`**. La salida completa está en [`dbt_build_resultado.txt`](dbt_build_resultado.txt).

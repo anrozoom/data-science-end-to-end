@@ -1,5 +1,7 @@
 # Arquitectura del pipeline
 
+> Nota del proyecto final: copia de la evidencia del PSet 2 (`pset_2/docs/`, tag `pset-02`). Los enlaces apuntan a los archivos de `proyecto_final/`; `backfill_paralelo.sh` y `flows/ingesta_diaria.yml` se reemplazaron por `kestra/ingesta.yml` en la fase 1 (`docs/cambios.md`) y los enlaces a ellos llevan a su versión original en `pset_2/`.
+
 ## Diagrama
 
 ```mermaid
@@ -63,13 +65,13 @@ Para exportarlo a PNG: pega el bloque en <https://mermaid.live> y descárgalo, o
 
 | Decisión | Por qué |
 |---|---|
-| Snowflake con un **usuario de servicio** (`TYPE = SERVICE`) y **par de llaves** | Snowflake restringe los inicios de sesión solo con contraseña. El mismo usuario y la misma llave sirven a Kestra, dbt y Spark, con un rol de permisos mínimos ([`snowflake/01_setup.sql`](../snowflake/01_setup.sql)) |
+| Snowflake con un **usuario de servicio** (`TYPE = SERVICE`) y **par de llaves** | Snowflake restringe los inicios de sesión solo con contraseña. El mismo usuario y la misma llave sirven a Kestra, dbt y Spark, con un rol de permisos mínimos ([`snowflake/01_setup.sql`](../../snowflake/01_setup.sql)) |
 | Warehouse XS con `AUTO_SUSPEND = 60` y resource monitor de 15 créditos al mes | La carga es pequeña (~2.500 filas por día) y el monitor pone un tope de gasto |
 | Kestra ejecuta las tareas en **contenedores aparte** con una imagen propia | Dependencias fijas (`snowflake-connector-python` 4.8.0, `kaggle` 2.2.5), aisladas de Kestra y con límite de memoria por tarea |
 | dbt en Docker con `profiles: ["tools"]` | No ocupa memoria mientras no corre. Versión fija (dbt-core 1.11.16 + dbt-snowflake 1.11.6) sin tocar el `requirements.txt` del curso |
 | Spark con la imagen oficial `apache/spark:3.5.3` | Misma versión que el `pyspark` del curso. Se evitan las imágenes de Bitnami, que dejaron de publicarse gratis |
 | Secretos fuera de git | `.env` (Compose, dbt, Spark) y `.env.kestra` (`SECRET_*` en base64 para Kestra) están ignorados. Solo se versiona `.env.example`, con valores ficticios |
-| Límites de memoria por servicio | El pico calculado es de ~9,5 GB en la máquina de 16 GB (detalle en el [README](../README.md)) |
+| Límites de memoria por servicio | El pico calculado es de ~9,5 GB en la máquina de 16 GB (detalle en el [README](../../README.md)) |
 
 ## Batch frente a streaming
 
