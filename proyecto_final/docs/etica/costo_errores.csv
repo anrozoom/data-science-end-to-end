@@ -1,0 +1,4 @@
+error,casos,costo_usd,quien_lo_asume
+falso negativo (fraude aprobado),348,28415.05,"el banco (contracargo del monto) y el cliente (gestión de la disputa, tarjeta bloqueada y reemplazada)"
+falso positivo en verificar (legítima con OTP o llamada),871,4355.0,"el banco (USD 5 por verificación, supuesto del PSet 1) y el cliente legítimo (fricción: un paso más para pagar)"
+falso positivo en retener (legítima retenida para el analista),114,570.0,"el cliente legítimo (compra detenida hasta la revisión; el costo real supera los USD 5 del supuesto) y el banco (tiempo del analista, riesgo de abandono)"

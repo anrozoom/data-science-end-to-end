@@ -1,6 +1,6 @@
 # Proyecto final · Centinela: detección de fraude con tarjeta, de punta a punta
 
-> **Estado: en construcción (fases 1 a 3 de 8 terminadas; fases 4 a 6 terminadas).** Este README se completa al final con el orden de ejecución completo desde cero.
+> **Estado:** fases 0 a 7 terminadas. El memo técnico y la presentación ejecutiva se entregan aparte, en `docs/`.
 
 Proyecto **Centinela**: puntuar cada transacción con tarjeta en el momento de la autorización y decidir **aprobar, verificar o retener**, en reemplazo de las reglas fijas del banco.
 
@@ -13,6 +13,29 @@ Proyecto **Centinela**: puntuar cada transacción con tarjeta en el momento de l
 | Ingesta (Kestra), dbt y Spark | `pset_2/` (tag `pset-02`) | Copiados. La ingesta se corrige en la fase 1 (observación del PSet 2) |
 | `src/` y notebooks 01–05 | `pset_3/` (tag `pset-03`) | Copiados **con su salida guardada**; no se vuelven a ejecutar (ver `docs/cambios.md`) |
 | Registro de modelos | MLflow del PSet 3 | Mismos volúmenes: `centinela-modelo` v1 `@champion` y v2 `@challenger` |
+
+## Reproducir desde cero (orden completo)
+
+Fuente → RAW → BRONZE → SILVER → GOLD → OBT → EDA y modelo → registro → API → simulación → monitoreo → reentrenamiento.
+Todo desde `proyecto_final/`. Los tiempos son los medidos en el Codespace (4 núcleos, 16 GB). Cada paso remite a su
+sección de detalle más abajo.
+
+| # | Paso | Comandos | Tiempo | Resultado |
+|---|---|---|---|---|
+| 0 | Credenciales | `cp .env.example .env` y completar los valores. Llave de Snowflake en `secrets/snowflake_key.p8` (cuenta nueva: `snowflake/01_setup.sql`). `bash scripts/generar_secretos_kestra.sh` | — | `.env`, `.env.kestra` y `secrets/` (fuera de git) |
+| 1 | Infraestructura (un solo comando) | `docker build -t centinela-ingesta:2.0 kestra/ingesta`, `docker compose build dbt ml` y `docker compose up -d` | ~1 min con las imágenes | Kestra :8080, Spark :8081, MLflow :5055, API :8000, tablero :8501 |
+| 2 | Fuente → RAW → BRONZE → SILVER → GOLD → OBT | `bash kestra/desplegar_flows.sh` y, en Kestra, *Execute* de `ingesta` con `fecha_inicio=2019-01-01`, `fecha_fin=2020-12-31`, `forzar=true` | 32 min 28 s | OBT de 1.852.394 filas; `python scripts/huella_obt.py snowflake --env .env` = `docs/obt_huella_referencia.json` |
+| 3 | Snapshot de la OBT | `python src/datos.py` | ~1 min | `data/obt_snapshot.parquet` + su SHA-256 (fuera de git) |
+| 4 | EDA y modelo | notebooks `01` a `05` (con su salida del PSet 3; volver a ejecutarlos recrea las corridas, ver `docs/cambios.md`) | — | `docs/eda`, `features`, `modelos`, `tuning`, `seleccion` |
+| 5 | Registro | MLflow `centinela-modelo` v1 `@champion`; `python scripts/umbral_retener.py --registrar`; `python scripts/exportar_fixture.py` | ~3 min | Umbrales 0,2400 y 0,8493 en las etiquetas de la versión; fixture de las pruebas |
+| 6 | API y pruebas | `docker compose up -d api`; `python -m pytest -q tests`; CI/CD en cada push (`.github/workflows/`) | segundos | 26 pruebas en verde y 1 `xfail` (hallazgo B1); imagen en GHCR |
+| 7 | Simulación de producción | `python monitoreo/calibrar_umbrales.py`; `python simulacion/construir_lotes.py`; `bash scripts/simular_produccion.sh 0 25` | ~3 min + ~27 min de cómputo, más las pausas | 26 lotes por la API; `PRODUCCION.PREDICCIONES` |
+| 8 | Monitoreo y alertas | automático en cada paso (`kestra/monitoreo.yml`); tablero en :8501 | ~25 s por paso | `PRODUCCION.MONITOREO` y `ALERTAS` |
+| 9 | Reentrenamiento | automático al dispararse; **pausa**: Kestra → la ejecución `PAUSED` de `reentrenamiento` → Resume | ~35 s hasta la pausa | `PRODUCCION.REENTRENAMIENTOS`, versiones nuevas en MLflow |
+| 10 | Resultados, ética y exportes | `python simulacion/resumen_simulacion.py`; `python scripts/exportar_docs.py`; `python monitoreo/etica.py`; `python scripts/diagramas.py`; notebooks 06 y 07 con `jupyter nbconvert --to notebook --execute --inplace notebooks/0X_*.ipynb` | ~5 min | `docs/simulacion/`, `docs/etica/`, `docs/negocio/`, los CSV de `docs/` |
+| 11 | Demostraciones del video | `docs/demos/guion_video.md` | < 7 min | — |
+
+**No uses `docker compose down -v`:** borraría los volúmenes de MLflow con el registro de modelos y todas las corridas.
 
 ## Levantar la infraestructura (fase 0)
 
@@ -190,6 +213,27 @@ grises marcan D1 y D2, y las líneas verticales, los reentrenamientos (continua 
   `python scripts/exportar_docs.py`. Para forzar los CSV: `TABLERO_FUENTE=csv docker compose up -d tablero`.
 - Verificado con el `AppTest` de Streamlit, con las dos fuentes: sin excepciones y con las mismas cifras.
 
+## Fase 7 · Ética, resultado de negocio, notebooks y exportes
+
+- **Resultado de negocio** (lotes etiquetados 0 a 23, 308.056 transacciones): pérdida neta del modelo **USD 33.340**,
+  frente a USD 473.566 de las reglas fijas (−93,0 %) y USD 870.612 sin modelo (−96,2 %). Lote por lote, con los
+  reentrenamientos marcados: `docs/negocio/negocio_por_lote.png` y `negocio_por_lote.csv`.
+- **Ética** ([docs/etica/etica.md](docs/etica/etica.md)): desempeño y tasa de cada decisión por género y grupo de edad,
+  costo de cada error y quién lo asume, y 4 criterios de retirada (negocio, equidad, montos fuera de soporte del
+  hallazgo B1 y sistema) evaluados en la simulación. **El criterio de equidad se activa:** en los lotes sin alterar, las
+  mujeres reciben 1,30 veces más falsas alarmas que los hombres (p = 0,003), y la mezcla de categorías no lo explica. Queda
+  como hallazgo y como revisión pendiente.
+- **Notebooks** `06_simulacion_produccion.ipynb` y `07_analisis_monitoreo.ipynb`, ejecutados con Restart + Run All
+  (`nbconvert --execute`). Solo leen: no cambian Snowflake ni MLflow. Se generan con `scripts/crear_notebooks.py`.
+- **Exportes** (`python scripts/exportar_docs.py`): `docs/corridas.csv` (las 106 corridas del experimento, incluidos los
+  reentrenamientos), `reentrenamientos.csv`, `monitoreo.csv`, `alertas.csv` y `predicciones.csv`. Este último es una
+  **muestra trazable** de 6.398 de las 338.152 predicciones: todos los fraudes con target llegado, todas las alertas y el
+  1 % del resto, cada una con versión, run_id, hash del snapshot y entradas. Se completa con `predicciones_por_lote.csv`
+  (agregado completo). La tabla completa vive en `PRODUCCION.PREDICCIONES` y en `data/predicciones_completas.parquet`
+  (fuera de git, porque en CSV supera el límite de GitHub).
+- **Diagramas:** `docs/arquitectura.png` y `docs/modelo_dimensional.png` (`python scripts/diagramas.py`).
+- **Cifras clave para el memo y la presentación:** [docs/resumen_cifras.md](docs/resumen_cifras.md).
+
 ## Snowflake
 
 - **Cuenta en uso:** la original del PSet 2, con las mismas credenciales por par de llaves (`.env` y `secrets/snowflake_key.p8`, fuera de git). El esquema `PRODUCCION` del PSet 4 se crea una vez como ACCOUNTADMIN con [`snowflake/02_produccion.sql`](snowflake/02_produccion.sql).
@@ -198,5 +242,8 @@ grises marcan D1 y D2, y las líneas verticales, los reentrenamientos (continua 
 ## Documentación
 
 - [`docs/cambios.md`](docs/cambios.md): observaciones de los PSet 1 a 3 y decisiones que cambian.
+- [`docs/limitaciones.md`](docs/limitaciones.md): problemas de datos, de simulación, de equidad y de arquitectura que quedan sin resolver.
 - `docs/datos/`: evidencia del pipeline de datos (PSet 2). `docs/eda/`, `docs/features/`, `docs/modelos/`, `docs/tuning/` y `docs/seleccion/`: evidencia de la experimentación (PSet 3).
 - `docs/historial/`: memos de los PSet anteriores.
+- `docs/api/`, `docs/hallazgos/`, `docs/monitoreo/`, `docs/simulacion/`, `docs/demos/`, `docs/etica/`, `docs/negocio/`: evidencia de
+  las fases 2 a 7. Resumen de cifras en [`docs/resumen_cifras.md`](docs/resumen_cifras.md).
