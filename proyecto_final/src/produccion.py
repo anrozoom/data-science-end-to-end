@@ -37,6 +37,10 @@ D2_HORAS = (9, 17)                  # horario diurno del fraude camuflado (inclu
 PRESENCIAL = ["gas_transport", "grocery_pos", "home", "shopping_pos", "kids_pets", "entertainment",
               "food_dining", "personal_care", "health_fitness", "misc_pos"]
 
+# Demostraciones para el video (scripts/demo_*.sh): pasos y lotes >= PASO_DEMO. No forman parte de la simulación:
+# todos los resúmenes, exportes y el disparo de reentrenamiento se limitan a pasos y lotes < N_LOTES.
+PASO_DEMO = 100
+
 # ------------------------------------------------------------------------------ reentrenamiento
 PASOS_CALENDARIO = (12, 24)         # disparo por calendario cada 12 semanas
 PESO_RECIENTES, N_RECIENTES = 5.0, 4  # los 4 lotes etiquetados más recientes pesan 5 veces más

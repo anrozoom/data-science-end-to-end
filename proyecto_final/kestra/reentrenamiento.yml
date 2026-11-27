@@ -26,6 +26,10 @@ inputs:
   - id: git_commit
     type: STRING
     defaults: desconocido
+  - id: lote_evaluacion
+    type: INT
+    defaults: -1
+    description: Solo para la demostración del video (scripts/demo_reentrenamiento.sh). -1 = el último lote etiquetado (paso - 2).
 
 tasks:
   - id: entrenar
@@ -59,7 +63,7 @@ tasks:
       maxAttempts: 2
     timeout: PT30M
     commands:
-      - python /proyecto/src/reentrenar.py entrenar --paso {{ inputs.paso }} --motivo {{ inputs.motivo }}
+      - python /proyecto/src/reentrenar.py entrenar --paso {{ inputs.paso }} --motivo {{ inputs.motivo }} --lote-evaluacion {{ inputs.lote_evaluacion }}
 
   - id: aviso
     type: io.kestra.plugin.core.log.Log

@@ -1,6 +1,6 @@
 # Proyecto final · Centinela: detección de fraude con tarjeta, de punta a punta
 
-> **Estado: en construcción (fases 1 a 3 de 8 terminadas; fase 4 terminada: simulación completa).** Este README se completa al final con el orden de ejecución completo desde cero.
+> **Estado: en construcción (fases 1 a 3 de 8 terminadas; fases 4 y 5 terminadas).** Este README se completa al final con el orden de ejecución completo desde cero.
 
 Proyecto **Centinela**: puntuar cada transacción con tarjeta en el momento de la autorización y decidir **aprobar, verificar o retener**, en reemplazo de las reglas fijas del banco.
 
@@ -161,6 +161,21 @@ bash scripts/esperar_ejecucion.sh <id>          # termina al llegar a una pausa 
 **Aprobar o rechazar una promoción:** en Kestra, abre *Executions* y entra en la ejecución de `reentrenamiento` en
 estado `PAUSED`. El log de la tarea `aviso` muestra la recomendación de la regla. Pulsa **Resume**, elige `aprobar`
 (true o false), escribe el motivo y confirma. La simulación continúa sola.
+
+## Fase 5 · Reentrenamiento, promoción y rollback
+
+- **Ciclo de reentrenamiento** (`kestra/reentrenamiento.yml`, `src/reentrenar.py`): se dispara por desempeño o por
+  calendario, entrena el challenger, registra una versión con alias `challenger`, se detiene en la **pausa** de
+  aprobación y, si se aprueba, mueve `champion`. Resultados de la simulación: 4 reentrenamientos, con la v4 y la v5
+  promovidas y la v3 y la v6 rechazadas ([docs/simulacion/resultados.md](docs/simulacion/resultados.md)).
+- **Regla de promoción:** pérdida neta por 1.000 del champion − la del challenger > 4,51 (desviación entre pliegues de
+  la CV) en el último lote etiquetado, que ninguno de los dos vio.
+- **Rollback sin reconstruir la imagen:** `bash scripts/demo_rollback.sh <versión>` mueve el alias en MLflow, y la API
+  lo resuelve sola en su recarga periódica. Medido: v5 → v4 en 30.1 s y v4 → v5 en
+  30.1 s, con el mismo digest de imagen (`docs/demos/rollback.csv`).
+- **Scripts del video** (guion con tiempos medidos en [docs/demos/guion_video.md](docs/demos/guion_video.md)):
+  `demo_deriva.sh` (1 min 6 s), `demo_reentrenamiento.sh` (~35 s hasta la pausa), `demo_rollback.sh` (~30 s) y
+  `demo_respaldo.sh` (< 1 s).
 
 ## Snowflake
 

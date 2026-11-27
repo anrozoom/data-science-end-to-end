@@ -17,7 +17,7 @@ import pandas as pd
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / "src"))
 
-from produccion import D1_DESDE, D2_DESDE, INICIO_SIM_SQL, Snowflake  # noqa: E402
+from produccion import D1_DESDE, D2_DESDE, INICIO_SIM_SQL, N_LOTES, Snowflake  # noqa: E402
 
 SALIDA = RAIZ / "docs" / "simulacion"
 
@@ -25,14 +25,14 @@ SALIDA = RAIZ / "docs" / "simulacion"
 def main() -> None:
     sf = Snowflake()
     al = sf.sql(f"""SELECT PASO, LOTE, ID_ALERTA, SEVERIDAD, VARIABLE, VALOR, UMBRAL, RECEPTOR, MENSAJE
-                    FROM PRODUCCION.ALERTAS WHERE INICIO_SIMULACION = {INICIO_SIM_SQL} ORDER BY PASO, ID_ALERTA""")
+                    FROM PRODUCCION.ALERTAS WHERE INICIO_SIMULACION = {INICIO_SIM_SQL} AND PASO < {N_LOTES} ORDER BY PASO, ID_ALERTA""")
     al["lote_alterado"] = al["lote"] >= D1_DESDE
     re = sf.sql(f"""SELECT PASO, MOTIVO, LOTE_EVALUACION, VENTANA_HASTA_LOTE, CHAMPION_VERSION, CHALLENGER_VERSION, RUN_ID,
                     AUC_PR_CHAMPION, AUC_PR_CHALLENGER, PERDIDA_X1000_CHAMPION, PERDIDA_X1000_CHALLENGER, MEJORA_X1000,
                     UMBRAL_MEJORA_X1000, RECOMENDACION, DECISION, MOTIVO_DECISION, TS_DECISION
-                    FROM PRODUCCION.REENTRENAMIENTOS WHERE INICIO_SIMULACION = {INICIO_SIM_SQL} ORDER BY PASO""")
+                    FROM PRODUCCION.REENTRENAMIENTOS WHERE INICIO_SIMULACION = {INICIO_SIM_SQL} AND PASO < {N_LOTES} ORDER BY PASO""")
     de = sf.sql(f"""SELECT PASO, LOTE, METRICA, VALOR, MODELO_VERSION FROM PRODUCCION.MONITOREO
-                    WHERE INICIO_SIMULACION = {INICIO_SIM_SQL} AND GRUPO = 'desempeño'""")
+                    WHERE INICIO_SIMULACION = {INICIO_SIM_SQL} AND GRUPO = 'desempeño' AND PASO < {N_LOTES}""")
     sf.cerrar()
     n = de.pivot_table(index=["lote", "paso", "modelo_version"], columns="metrica", values="valor").reset_index()
     for c in ("perdida_neta", "perdida_reglas", "perdida_sin_modelo"):

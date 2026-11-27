@@ -36,7 +36,7 @@ import alertas as catalogo  # noqa: E402
 from datos import cargar_obt  # noqa: E402
 from deriva import NUMERICAS, VIGILADAS, referencia_misma_semana, tabla_psi  # noqa: E402
 from pipeline import COSTO_FALSA_ALARMA, auc_pr, dividir  # noqa: E402
-from produccion import (CATALOGOS, FILTRO_SIM, HORIZONTE, INICIO_SIM_SQL, NOMBRE_MODELO, PASOS_CALENDARIO,  # noqa: E402
+from produccion import (CATALOGOS, FILTRO_SIM, HORIZONTE, INICIO_SIM_SQL, N_LOTES, NOMBRE_MODELO, PASOS_CALENDARIO,  # noqa: E402
                         Snowflake, configurar_mlflow, emitir_salidas, umbrales)
 
 
@@ -85,7 +85,7 @@ def disparo(sf: Snowflake, paso: int, historial: pd.DataFrame, version_champion:
     ultima = {"paso": None, "lote_evaluacion": -1}
     if sf.existe("REENTRENAMIENTOS"):
         r = sf.sql(f"SELECT MAX(PASO) AS paso, MAX(LOTE_EVALUACION) AS lote FROM PRODUCCION.REENTRENAMIENTOS "
-                   f"WHERE INICIO_SIMULACION = {INICIO_SIM_SQL}")
+                   f"WHERE INICIO_SIMULACION = {INICIO_SIM_SQL} AND PASO < {N_LOTES}")   # sin las demostraciones
         if not r.empty and pd.notna(r["paso"].iloc[0]):
             ultima = {"paso": int(r["paso"].iloc[0]), "lote_evaluacion": int(r["lote"].iloc[0])}
     res = {"motivo": "ninguno", "lotes": [], "auc_lotes": [], "version": version_champion, "ultima_decision": ultima}
@@ -145,7 +145,8 @@ def main(paso: int) -> dict:
     hist = pd.DataFrame(columns=["lote", "auc_pr", "version"])
     if sf.existe("MONITOREO"):
         hist = sf.sql(f"""SELECT LOTE, VALOR AS auc_pr, MODELO_VERSION AS version FROM PRODUCCION.MONITOREO
-                          WHERE INICIO_SIMULACION = {INICIO_SIM_SQL} AND GRUPO = 'desempeño' AND METRICA = 'auc_pr' AND PASO < {paso}""")
+                          WHERE INICIO_SIMULACION = {INICIO_SIM_SQL} AND GRUPO = 'desempeño' AND METRICA = 'auc_pr'
+                          AND PASO < {min(paso, N_LOTES)}""")
     if etiquetado and etiquetado["auc_pr"] is not None:
         hist = pd.concat([hist, pd.DataFrame([{"lote": etiquetado["lote"], "auc_pr": etiquetado["auc_pr"],
                                               "version": etiquetado["version"]}])], ignore_index=True)

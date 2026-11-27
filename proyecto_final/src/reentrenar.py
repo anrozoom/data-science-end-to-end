@@ -65,7 +65,7 @@ def evaluar(modelo, X: pd.DataFrame, y: np.ndarray, u1: float) -> dict:
             "perdida_x1000": 1000 * perdida_neta(y, s, X["amt"].to_numpy(), u1) / len(y)}
 
 
-def entrenar(paso: int, motivo: str, ensayo: bool = False) -> dict:
+def entrenar(paso: int, motivo: str, ensayo: bool = False, lote_evaluacion: int | None = None) -> dict:
     """ensayo=True: mismos datos y ajuste, pero targets de TARGETS (aún no "llegados"), modelo guardado solo en
     una carpeta temporal y sin escribir en MLflow ni en Snowflake (para medir tiempos y validar el código)."""
     import mlflow
@@ -85,7 +85,8 @@ def entrenar(paso: int, motivo: str, ensayo: bool = False) -> dict:
 
     sf = Snowflake()
     inicio = sf.sql(f"SELECT {INICIO_SIM_SQL} AS i")["i"].iloc[0]
-    L = paso - HORIZONTE
+    # Lote de evaluación: el último etiquetado (paso - 2); la demostración del video lo fija (paso 101, lote 23).
+    L = lote_evaluacion if lote_evaluacion is not None and lote_evaluacion >= 0 else paso - HORIZONTE
     etiq = lotes_etiquetados(sf, L, "TARGETS" if ensayo else "TARGETS_LLEGADOS")
     if L < 1 or etiq.empty:
         raise RuntimeError(f"No hay lotes etiquetados suficientes en el paso {paso}")
@@ -233,6 +234,7 @@ if __name__ == "__main__":
     e.add_argument("--paso", type=int, required=True)
     e.add_argument("--motivo", required=True)
     e.add_argument("--ensayo", action="store_true")
+    e.add_argument("--lote-evaluacion", type=int, default=-1, help="fija el lote de evaluación (demostración); -1 = paso - 2")
     d = sub.add_parser("decidir")
     d.add_argument("--paso", type=int, required=True)
     d.add_argument("--aprobar", required=True, choices=["true", "false"])
@@ -240,7 +242,7 @@ if __name__ == "__main__":
     d.add_argument("--motivo-b64", default="", help="motivo en base64 (así lo pasa Kestra)")
     args = a.parse_args()
     if args.accion == "entrenar":
-        entrenar(args.paso, args.motivo, args.ensayo)
+        entrenar(args.paso, args.motivo, args.ensayo, args.lote_evaluacion)
     else:
         import base64
         motivo = base64.b64decode(args.motivo_b64).decode("utf-8") if args.motivo_b64 else args.motivo
