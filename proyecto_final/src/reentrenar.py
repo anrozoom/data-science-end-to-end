@@ -37,6 +37,14 @@ from produccion import (HORIZONTE, INICIO_SIM_SQL, N_RECIENTES, NOMBRE_MODELO, P
 
 API = os.environ.get("API_URL", "http://localhost:8000").rstrip("/")
 
+DDL_REENTRENAMIENTOS = """CREATE TABLE IF NOT EXISTS PRODUCCION.REENTRENAMIENTOS (
+    INICIO_SIMULACION TIMESTAMP_NTZ, PASO NUMBER, MOTIVO VARCHAR, LOTE_EVALUACION NUMBER, VENTANA_HASTA_LOTE NUMBER,
+    FILAS_VENTANA_PRODUCCION NUMBER, FILAS_AJUSTE NUMBER, CHAMPION_VERSION VARCHAR, CHALLENGER_VERSION VARCHAR,
+    RUN_ID VARCHAR, AUC_PR_CHAMPION FLOAT, AUC_PR_CHALLENGER FLOAT, PERDIDA_X1000_CHAMPION FLOAT,
+    PERDIDA_X1000_CHALLENGER FLOAT, PERDIDA_USD_CHAMPION FLOAT, PERDIDA_USD_CHALLENGER FLOAT, MEJORA_X1000 FLOAT,
+    UMBRAL_MEJORA_X1000 FLOAT, RECOMENDACION VARCHAR, DECISION VARCHAR, TS_ENTRENAMIENTO TIMESTAMP_NTZ,
+    SEGUNDOS_ENTRENAMIENTO FLOAT, MOTIVO_DECISION VARCHAR, TS_DECISION TIMESTAMP_NTZ)"""
+
 
 def _commit() -> str:
     if os.environ.get("GIT_COMMIT"):
@@ -151,6 +159,7 @@ def entrenar(paso: int, motivo: str, ensayo: bool = False) -> dict:
         "mejora_x1000": mejora, "umbral_mejora_x1000": umbral_mejora, "recomendacion": recomendacion,
         "decision": "pendiente", "motivo_decision": None, "ts_entrenamiento": pd.Timestamp.utcnow().tz_localize(None),
         "ts_decision": pd.NaT, "segundos_entrenamiento": seg_fit}])
+    sf.ejecutar(DDL_REENTRENAMIENTOS)              # tipos explícitos: con write_pandas, una columna vacía quedaría NUMBER
     if sf.existe("REENTRENAMIENTOS"):
         sf.ejecutar(f"DELETE FROM PRODUCCION.REENTRENAMIENTOS WHERE PASO = {paso} AND INICIO_SIMULACION = {INICIO_SIM_SQL}")
     sf.escribir(fila, "REENTRENAMIENTOS")
