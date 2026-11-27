@@ -7,8 +7,21 @@ Cada fila indica la observación o decisión, qué se cambió y en qué archivo.
 | PSet | Observación | Qué cambié | Dónde | Estado |
 |---|---|---|---|---|
 | 1 (9,7) | No se puede repetir el mismo protocolo de validación en el dataset real ULB/Worldline (`mlg-ulb/creditcardfraud`): no tiene las variables de distancia ni el historial del cliente | Se retira la validación externa con ULB del plan. Un contraste con ULB solo sería válido con variables compatibles (monto y hora relativa derivada de `Time`) o con otra fuente real con historial por tarjeta. Queda como limitación | `docs/cambios.md`, `docs/datos/limitaciones.md`, `README.md` (limitaciones) | Aplicado |
-| 2 (Kestra 8,5) | "Integra dbt y Spark en el flujo. La ingesta, los reintentos y el backfill funcionan, pero las transformaciones aún se ejecutan manualmente." | `kestra/ingesta.yml` encadena en **una sola ejecución**, sin pasos manuales: carga por día a RAW (subflows concurrentes) → dbt (BRONZE → SILVER → GOLD, con tests) → Spark (OBT con sus validaciones). El orden es Raw → dbt → Spark porque la OBT se construye desde GOLD | `kestra/ingesta.yml` | En curso (fase 1) |
+| 2 (Kestra 8,5) | "Integra dbt y Spark en el flujo. La ingesta, los reintentos y el backfill funcionan, pero las transformaciones aún se ejecutan manualmente." | `kestra/ingesta.yml` encadena en **una sola ejecución**, sin pasos manuales: carga por día a RAW (subflows concurrentes) → dbt (BRONZE → SILVER → GOLD, con tests) → Spark (OBT con sus validaciones). El orden es Raw → dbt → Spark porque la OBT se construye desde GOLD | `kestra/ingesta.yml`, `kestra/ingesta/cargar_dia.py`, `docker-compose.yml` (`ENV_PROYECTO_DIR`), `README.md` (fase 1), `docs/ingesta_ejecuciones.csv` | **Aplicado.** Ejecución `1MthBaBVmK0HcOrWcp8Uo0` (2026-11-27): las 4 tareas en `SUCCESS` en 32 min 28 s. `cargar_raw` 731/731 fechas y 1.852.394 filas (29 min 55 s, `forzar=true`); `dbt_build` PASS=75 (20 s); `spark_obt` OBT de 1.852.394 filas con sus validaciones (2 min 8 s); `validar_obt` 5.000/5.000 (4 s). La OBT reconstruida tiene la **misma huella** que la referencia y el snapshot del PSet 3 (sección 3) |
 | 3 | Calificación perfecta | Sin correcciones. Solo se actualizan las decisiones que cambian (sección 2) | — | — |
+
+**Lo que se conserva del PSet 2 (y sigue siendo demostrable):**
+- **Backfill:**
+  - con el rango como input (ejecución `1MthBaBV…`);
+  - con el backfill nativo del trigger diario (Triggers → Backfill) y el input `transformar=false`, para que cada día solo cargue RAW: ejecuciones `2FWXIAKX…`, `tCuPU6uE…` y `5newV8VO…` (2019-01-04 a 2019-01-06), una por día y en `SUCCESS`.
+- **Reintentos:**
+  - por día, con 3 intentos y espera creciente, visibles en el log: la ejecución `23i6JtWI…` con `simular_falla_dia=2019-01-02` muestra `2019-01-02: intento 1 falló (...); reintento en 5 s` y después el día completo;
+  - de la tarea, con `retry` exponencial de 3 intentos (`simular_falla=true`).
+- **Idempotencia:** cada día se borra y se inserta en una transacción. Con `forzar=false` se omiten los días ya completos.
+
+**Qué cambió frente al PSet 2:**
+- Las transformaciones (dbt y Spark) se ejecutan **dentro del mismo flujo** y no a mano.
+- La carga agrupa el rango en una tarea con concurrencia interna, en lugar de una ejecución por día: así dbt y Spark corren una sola vez al final.
 
 ## 2. Decisiones de PSet anteriores que cambian
 

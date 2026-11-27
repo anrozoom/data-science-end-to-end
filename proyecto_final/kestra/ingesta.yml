@@ -1,0 +1,218 @@
+id: ingesta
+namespace: centinela.ingesta
+description: |
+  Ingesta de punta a punta en UNA ejecución, sin pasos manuales (corrección de la observación del PSet 2):
+    1. cargar_raw   Kaggle -> CENTINELA.RAW.TRANSACCIONES (un día o un rango, idempotente por día, en paralelo)
+    2. dbt_build    RAW -> BRONZE -> SILVER -> GOLD (star schema) + los tests de dbt
+    3. spark_obt    GOLD -> OBT.TRANSACCIONES_OBT en el clúster Spark del compose (validaciones de joins)
+    4. validar_obt  recálculo SQL de las ventanas de comportamiento en una muestra de la OBT
+  Trigger diario: carga el día del trigger y actualiza GOLD y la OBT.
+  Backfill, dos formas:
+    a) rango como input: Execute con fecha_inicio=2019-01-01, fecha_fin=2020-12-31 (forzar=true para reescribir);
+    b) backfill nativo del trigger "diario" (Triggers -> Backfill) con transformar=false, y al final una
+       ejecución con transformar=true (así dbt y Spark corren una vez y no en cada día).
+
+labels:
+  proyecto: centinela
+  capa: raw-a-obt
+
+inputs:
+  - id: fecha_inicio
+    type: DATE
+    required: false
+    description: Primera fecha a cargar. Si se omite, la del trigger (o hoy).
+  - id: fecha_fin
+    type: DATE
+    required: false
+    description: Última fecha a cargar. Si se omite, igual a fecha_inicio.
+  - id: forzar
+    type: BOOL
+    defaults: false
+    description: true reescribe también los días que ya están completos en RAW.
+  - id: concurrencia
+    type: INT
+    defaults: 8
+    description: Fechas que se cargan en paralelo dentro de cargar_raw.
+  - id: transformar
+    type: BOOL
+    defaults: true
+    description: false = solo carga RAW (útil en el backfill nativo día por día); true = sigue con dbt, Spark y la validación.
+  - id: simular_falla
+    type: BOOL
+    defaults: false
+    description: Demostración del retry de la TAREA cargar_raw (falla todo el primer intento).
+  - id: simular_falla_dia
+    type: STRING
+    required: false
+    description: Demostración del retry POR DÍA (AAAA-MM-DD). El primer intento de esa fecha falla y el log muestra su reintento.
+
+# Una sola cadena a la vez: dos reconstrucciones simultáneas de GOLD/OBT se pisarían.
+concurrency:
+  limit: 1
+  behavior: QUEUE
+
+variables:
+  inicio: "{{ (inputs.fecha_inicio ?? trigger.date ?? execution.startDate) | date('yyyy-MM-dd') }}"
+  fin: "{{ (inputs.fecha_fin ?? inputs.fecha_inicio ?? trigger.date ?? execution.startDate) | date('yyyy-MM-dd') }}"
+
+tasks:
+  # 1 ---------------------------------------------------------------------- RAW
+  - id: cargar_raw
+    type: io.kestra.plugin.scripts.shell.Commands
+    description: Descarga única de Kaggle al volumen y carga idempotente por día a RAW (PUT + COPY en transacción).
+    containerImage: centinela-ingesta:2.0
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+      pullPolicy: NEVER
+      volumes:
+        - centinela_datos_fuente:/data
+      memory:
+        memory: "2GB"
+    # Cada día ya tiene su propio reintento (3, con espera creciente). Este retry de la tarea cubre
+    # fallas de toda la carga (Kaggle caído, sin red); con forzar=false solo rehace los días faltantes.
+    retry:
+      type: exponential
+      interval: PT15S
+      maxInterval: PT2M
+      maxAttempts: 3
+    timeout: PT1H
+    env:
+      FECHA_INICIO: "{{ render(vars.inicio) }}"
+      FECHA_FIN: "{{ render(vars.fin) }}"
+      FORZAR: "{{ inputs.forzar ?? false }}"
+      CONCURRENCIA: "{{ inputs.concurrencia ?? 8 }}"
+      SIMULAR_FALLA: "{{ inputs.simular_falla ?? false }}"
+      SIMULAR_FALLA_DIA: "{{ inputs.simular_falla_dia ?? '' }}"
+      EJECUCION_ID: "{{ execution.id }}"
+      SNOWFLAKE_ACCOUNT: "{{ secret('SNOWFLAKE_ACCOUNT') }}"
+      SNOWFLAKE_USER: "{{ secret('SNOWFLAKE_USER') }}"
+      SNOWFLAKE_ROLE: "{{ secret('SNOWFLAKE_ROLE') }}"
+      SNOWFLAKE_WAREHOUSE: "{{ secret('SNOWFLAKE_WAREHOUSE') }}"
+      SNOWFLAKE_DATABASE: "{{ secret('SNOWFLAKE_DATABASE') }}"
+      SNOWFLAKE_PRIVATE_KEY: "{{ secret('SNOWFLAKE_PRIVATE_KEY') }}"
+      SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: "{{ secret('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+      KAGGLE_API_TOKEN: "{{ secret('KAGGLE_API_TOKEN') }}"
+    commands:
+      - python /app/cargar_dia.py
+
+  # 2-4: transformaciones en el MISMO flujo (observación del PSet 2). Se omiten solo si transformar=false.
+  - id: transformaciones
+    type: io.kestra.plugin.core.flow.If
+    condition: "{{ inputs.transformar ?? true }}"
+    then:
+        # 2 ---------------------------------------------------------- BRONZE/SILVER/GOLD
+        - id: dbt_build
+          type: io.kestra.plugin.scripts.shell.Commands
+          description: dbt build (modelos + 67 tests). Si un test falla, la cadena se detiene antes de la OBT.
+          containerImage: centinela-dbt:1.11
+          taskRunner:
+            type: io.kestra.plugin.scripts.runner.docker.Docker
+            pullPolicy: NEVER
+            user: "1000:1000"
+            entryPoint: [""]
+            volumes:
+              - "{{ envs.proyecto_dir }}/dbt:/usr/app/dbt"
+              - "{{ envs.proyecto_dir }}/secrets:/secrets:ro"
+            memory:
+              memory: "1GB"
+          retry:
+            type: constant
+            interval: PT30S
+            maxAttempts: 2
+          timeout: PT30M
+          env:
+            DBT_PROFILES_DIR: /usr/app/dbt
+            SNOWFLAKE_ACCOUNT: "{{ secret('SNOWFLAKE_ACCOUNT') }}"
+            SNOWFLAKE_USER: "{{ secret('SNOWFLAKE_USER') }}"
+            SNOWFLAKE_ROLE: "{{ secret('SNOWFLAKE_ROLE') }}"
+            SNOWFLAKE_WAREHOUSE: "{{ secret('SNOWFLAKE_WAREHOUSE') }}"
+            SNOWFLAKE_DATABASE: "{{ secret('SNOWFLAKE_DATABASE') }}"
+            SNOWFLAKE_PRIVATE_KEY_PATH: /secrets/snowflake_key.p8
+            SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: "{{ secret('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+          commands:
+            - cd /usr/app/dbt && dbt build --profiles-dir /usr/app/dbt
+
+        # 3 -------------------------------------------------------------------- OBT
+        - id: spark_obt
+          type: io.kestra.plugin.scripts.shell.Commands
+          description: spark-submit contra el clúster del compose (spark://spark-master:7077); escribe la OBT solo si pasan sus validaciones.
+          containerImage: apache/spark:3.5.3-java17-python3
+          taskRunner:
+            type: io.kestra.plugin.scripts.runner.docker.Docker
+            pullPolicy: IF_NOT_PRESENT
+            user: root                                   # lee la llave montada (permisos 600)
+            networkMode: centinela_red                   # misma red que spark-master y spark-worker
+            entryPoint: [""]
+            volumes:
+              - "{{ envs.proyecto_dir }}/spark:/opt/spark-jobs"
+              - "{{ envs.proyecto_dir }}/secrets:/secrets:ro"
+              - centinela_ivy:/root/.ivy2                # caché de los paquetes del conector entre ejecuciones
+            memory:
+              memory: "2GB"
+          retry:
+            type: constant
+            interval: PT30S
+            maxAttempts: 2
+          timeout: PT30M
+          env:
+            SNOWFLAKE_ACCOUNT: "{{ secret('SNOWFLAKE_ACCOUNT') }}"
+            SNOWFLAKE_USER: "{{ secret('SNOWFLAKE_USER') }}"
+            SNOWFLAKE_ROLE: "{{ secret('SNOWFLAKE_ROLE') }}"
+            SNOWFLAKE_WAREHOUSE: "{{ secret('SNOWFLAKE_WAREHOUSE') }}"
+            SNOWFLAKE_DATABASE: "{{ secret('SNOWFLAKE_DATABASE') }}"
+            SNOWFLAKE_PRIVATE_KEY_PATH: /secrets/snowflake_key.p8
+            SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: "{{ secret('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+          commands:
+            # El driver corre en este contenedor; el worker se conecta de vuelta a su IP en centinela_red.
+            - >-
+              /opt/spark/bin/spark-submit
+              --master spark://spark-master:7077
+              --packages net.snowflake:spark-snowflake_2.12:3.1.1,net.snowflake:snowflake-jdbc:3.19.0
+              --conf spark.jars.ivy=/root/.ivy2
+              --conf spark.driver.host=$(hostname -i)
+              --conf spark.driver.bindAddress=0.0.0.0
+              --conf spark.driver.memory=1g
+              --conf spark.executor.memory=1800m
+              --conf spark.executor.cores=2
+              /opt/spark-jobs/construir_obt.py
+
+        # 4 ----------------------------------------------------------- validación final
+        - id: validar_obt
+          type: io.kestra.plugin.scripts.shell.Commands
+          description: Recalcula en SQL n_tx_1h y n_tx_24h para 5.000 transacciones de la OBT y las compara con Spark.
+          containerImage: centinela-dbt:1.11
+          taskRunner:
+            type: io.kestra.plugin.scripts.runner.docker.Docker
+            pullPolicy: NEVER
+            user: "1000:1000"
+            entryPoint: [""]
+            volumes:
+              - "{{ envs.proyecto_dir }}/scripts:/scripts:ro"
+              - "{{ envs.proyecto_dir }}/secrets:/secrets:ro"
+          timeout: PT15M
+          env:
+            SNOWFLAKE_ACCOUNT: "{{ secret('SNOWFLAKE_ACCOUNT') }}"
+            SNOWFLAKE_USER: "{{ secret('SNOWFLAKE_USER') }}"
+            SNOWFLAKE_ROLE: "{{ secret('SNOWFLAKE_ROLE') }}"
+            SNOWFLAKE_WAREHOUSE: "{{ secret('SNOWFLAKE_WAREHOUSE') }}"
+            SNOWFLAKE_DATABASE: "{{ secret('SNOWFLAKE_DATABASE') }}"
+            SNOWFLAKE_PRIVATE_KEY_PATH: /secrets/snowflake_key.p8
+            SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: "{{ secret('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+          commands:
+            - python /scripts/validar_obt_sql.py
+
+errors:
+  - id: registrar_falla
+    type: io.kestra.plugin.core.log.Log
+    level: ERROR
+    message: >-
+      La ingesta {{ render(vars.inicio) }} a {{ render(vars.fin) }} falló en la tarea
+      {{ errorLogs()[0]['taskId'] ?? 'desconocida' }} (ejecución {{ execution.id }}).
+      Revisar sus logs; la carga es idempotente, así que se puede volver a ejecutar.
+
+triggers:
+  # Diario a las 03:00 UTC: carga el día del trigger y actualiza GOLD y la OBT.
+  - id: diario
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 3 * * *"
+    recoverMissedSchedules: NONE

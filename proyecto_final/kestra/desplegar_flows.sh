@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Crea o actualiza en Kestra todos los flows de pset_2/kestra/flows/ usando la API.
+# Crea o actualiza en Kestra todos los flows de proyecto_final/kestra/ usando la API.
 # Lee el usuario y la contraseña de la UI desde pset_2/.env (no los imprime).
-# Uso, desde pset_2/:  bash kestra/desplegar_flows.sh
+# Uso, desde proyecto_final/:  bash kestra/desplegar_flows.sh
 set -euo pipefail
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -9,7 +9,7 @@ API=${KESTRA_API:-http://localhost:8080/api/v1/main}
 U=$(sed -n 's/^KESTRA_ADMIN_USER=//p' "$RAIZ/.env" | tail -n 1)
 P=$(sed -n 's/^KESTRA_ADMIN_PASSWORD=//p' "$RAIZ/.env" | tail -n 1)
 
-for flow in "$RAIZ"/kestra/flows/*.yml; do
+for flow in "$RAIZ"/kestra/*.yml; do
   id=$(sed -n 's/^id: *//p' "$flow" | head -n 1)
   ns=$(sed -n 's/^namespace: *//p' "$flow" | head -n 1)
   if curl -sf -u "$U:$P" "$API/flows/$ns/$id" > /dev/null; then

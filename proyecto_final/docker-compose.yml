@@ -40,6 +40,9 @@ services:
         required: false
     environment:
       JAVA_OPTS: "-XX:MaxRAMPercentage=70"
+      # Ruta del proyecto en el host: los flows montan dbt/, spark/, scripts/ y secrets/ en los
+      # contenedores de sus tareas como {{ envs.proyecto_dir }}/... (Docker-in-Docker del Codespace).
+      ENV_PROYECTO_DIR: ${PROYECTO_DIR:-${PWD}}
       KESTRA_CONFIGURATION: |
         datasources:
           postgres:

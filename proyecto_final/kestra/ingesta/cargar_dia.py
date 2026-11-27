@@ -1,4 +1,4 @@
-"""Ingesta diaria simulada: carga en RAW las transacciones de UNA fecha.
+"""Ingesta a RAW: una fecha (trigger diario) o un rango (backfill), en paralelo.
 
 La fuente (Kaggle, kartik2112/fraud-detection) es un archivo estático de dos años.
 Para simular una ingesta diaria:
@@ -175,7 +175,7 @@ def filas_en_archivo(archivo: Path) -> int:
         return sum(1 for _ in csv.reader(f)) - 1
 
 
-def cargar_fecha(fecha: str) -> int:
+def cargar_fecha(fecha: str, forzar: bool = True) -> int:
     archivo = DIAS / f"{fecha}.csv"
     if not archivo.exists():
         log(f"No hay transacciones para {fecha} (la fuente cubre 2019-01-01 a 2020-12-31). "
@@ -185,7 +185,11 @@ def cargar_fecha(fecha: str) -> int:
     con = conectar()
     try:
         cur = con.cursor()
-        crear_objetos(cur)
+        if not forzar:
+            ya = cur.execute(f"SELECT COUNT(*) FROM {TABLA} WHERE _LOAD_DATE = %s", (fecha,)).fetchone()[0]
+            if ya == esperadas:
+                log(f"{fecha}: ya completo ({ya} filas); se omite (forzar=false).")
+                return ya
         cur.execute(f"PUT 'file://{archivo}' @{STAGE}/{fecha}/ OVERWRITE = TRUE AUTO_COMPRESS = TRUE")
         lista = ", ".join(COLUMNAS_RAW + ["_SOURCE_FILE", "_LOAD_DATE"])
         seleccion = ", ".join(f"t.${i}" for i in range(1, len(COLUMNAS_RAW) + 3))
@@ -221,14 +225,57 @@ def simular_falla_si_corresponde() -> None:
     log("Falla simulada ya ocurrió en un intento anterior: este intento continúa.")
 
 
+def cargar_con_reintentos(fecha: str, forzar: bool, intentos: int = 3) -> int:
+    """Reintento por día (fallas transitorias de Snowflake o de red), con espera creciente."""
+    simular = os.environ.get("SIMULAR_FALLA_DIA", "").strip()
+    for k in range(1, intentos + 1):
+        try:
+            if fecha == simular and k == 1:      # demostración del reintento por día
+                raise RuntimeError(f"Falla simulada en el primer intento de {fecha} (SIMULAR_FALLA_DIA)")
+            return cargar_fecha(fecha, forzar)
+        except Exception as e:  # noqa: BLE001
+            if k == intentos:
+                raise
+            log(f"{fecha}: intento {k} falló ({type(e).__name__}: {str(e)[:120]}); reintento en {5 * k} s")
+            time.sleep(5 * k)
+    return 0
+
+
 def main() -> int:
-    fecha = os.environ["FECHA"]
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", fecha):
-        raise ValueError(f"FECHA inválida: {fecha!r}")
-    log(f"Ingesta de la fecha {fecha}")
+    """Una fecha (FECHA) o un rango (FECHA_INICIO..FECHA_FIN), cargado en paralelo (CONCURRENCIA)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from datetime import date, timedelta
+
+    inicio = os.environ.get("FECHA_INICIO") or os.environ["FECHA"]
+    fin = os.environ.get("FECHA_FIN") or inicio
+    for f in (inicio, fin):
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", f):
+            raise ValueError(f"Fecha inválida: {f!r}")
+    forzar = os.environ.get("FORZAR", "true").lower() == "true"
+    hilos = max(1, int(os.environ.get("CONCURRENCIA", "8")))
+    d0, d1 = date.fromisoformat(inicio), date.fromisoformat(fin)
+    fechas = [(d0 + timedelta(days=i)).isoformat() for i in range((d1 - d0).days + 1)]
+    log(f"Ingesta de {len(fechas)} fecha(s): {inicio} a {fin} | concurrencia {hilos} | forzar={forzar}")
     simular_falla_si_corresponde()
     preparar_fuente()
-    cargar_fecha(fecha)
+    con = conectar()                              # tabla y stage una sola vez, antes de los hilos
+    try:
+        crear_objetos(con.cursor())
+    finally:
+        con.close()
+    t0, total, fallidas = time.time(), 0, []
+    with ThreadPoolExecutor(max_workers=hilos) as ex:
+        futuros = {ex.submit(cargar_con_reintentos, f, forzar): f for f in fechas}
+        for fut in as_completed(futuros):
+            try:
+                total += fut.result()
+            except Exception as e:  # noqa: BLE001
+                fallidas.append(futuros[fut])
+                log(f"ERROR {futuros[fut]}: {type(e).__name__}: {str(e)[:200]}")
+    log(f"RESUMEN: {len(fechas) - len(fallidas)}/{len(fechas)} fechas OK, {total} filas en RAW para el rango, "
+        f"{time.time() - t0:.0f} s")
+    if fallidas:
+        raise RuntimeError(f"{len(fallidas)} fecha(s) fallaron tras sus reintentos: {sorted(fallidas)[:10]}")
     return 0
 
 

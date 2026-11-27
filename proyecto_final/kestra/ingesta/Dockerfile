@@ -1,6 +1,6 @@
 # Imagen de la ingesta diaria que ejecutan las tareas de Kestra.
-# Construir desde pset_2/:  docker build -t centinela-ingesta:1.0 kestra/ingesta
-# Kestra la usa con pullPolicy NEVER: debe existir localmente con este tag.
+# Construir desde proyecto_final/:  docker build -t centinela-ingesta:2.0 kestra/ingesta
+# Kestra la usa con pullPolicy NEVER: debe existir localmente con este tag (2.0: carga por rango).
 FROM python:3.11-slim
 
 RUN pip install --no-cache-dir \
