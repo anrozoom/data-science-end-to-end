@@ -45,7 +45,9 @@ def _conectar():
     import snowflake.connector
 
     env_file = Path(os.environ.get("SNOWFLAKE_ENV_FILE", RAIZ / ".env"))
-    cfg = {**_leer_env(env_file), **{k: v for k, v in os.environ.items() if k.startswith("SNOWFLAKE_")}}
+    # En los contenedores de Kestra no hay .env: las variables SNOWFLAKE_* llegan como entorno.
+    cfg = {**(_leer_env(env_file) if env_file.exists() else {}),
+           **{k: v for k, v in os.environ.items() if k.startswith("SNOWFLAKE_")}}
     # En el .env del PSet 2 la ruta de la llave es la de los contenedores (/secrets/...).
     llave = Path(cfg["SNOWFLAKE_PRIVATE_KEY_PATH"])
     if not llave.exists():

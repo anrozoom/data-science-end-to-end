@@ -1,0 +1,281 @@
+{
+  "fuente": "CV del champion del PSet 3 (HistGradientBoosting por defecto, TimeSeriesSplit(3), semilla 42)",
+  "datos_sha256": "9be410f73fb8c090e7647fc27559665c28431d29a0652548d16d8b932d9e9bce",
+  "umbral_verificar_u1": 0.23999331074785862,
+  "umbral_retener_u2": 0.8493347639207266,
+  "cv_auc_pr_pliegues_recalculada": [
+    0.938595,
+    0.969093,
+    0.976045
+  ],
+  "desempeno": {
+    "semanas_oof": 54,
+    "semanas_con_auc": 54,
+    "min_fraudes_por_semana": 10,
+    "auc_pr_semanal_media": 0.9626013977334145,
+    "auc_pr_semanal_desviacion": 0.027258850610424358,
+    "auc_pr_semanal_min": 0.8822326450891432,
+    "auc_pr_semanal_p5": 0.9087002394991559,
+    "umbral_auc_pr": 0.9080836965125657,
+    "lotes_consecutivos_para_reentrenar": 2,
+    "comparacion": {
+      "umbral_por_pliegue": {
+        "valor": 0.9289999999999999,
+        "regla": "media - 2 desv. de las 3 AUC-PR de pliegue (PSet 3: 0,961 ± 0,016)",
+        "semanas_oof_bajo_umbral": 8,
+        "lotes_prueba_sin_alterar_bajo_umbral": [
+          0,
+          14
+        ]
+      },
+      "umbral_semanal": {
+        "valor": 0.9080836965125657,
+        "regla": "media - 2 desv. de la AUC-PR OOF semanal de la misma CV",
+        "semanas_oof_bajo_umbral": 2,
+        "pares_consecutivos_oof_bajo_umbral": 0,
+        "lotes_prueba_sin_alterar_bajo_umbral": []
+      }
+    }
+  },
+  "tasa_alertas": {
+    "media": 0.008693542673284824,
+    "desviacion": 0.0018763401623108594,
+    "banda_min": 0.003064522186352246,
+    "banda_max": 0.014322563160217402
+  },
+  "promocion": {
+    "perdida_x1000_por_pliegue": [
+      39.29643665789323,
+      33.84020284428204,
+      30.350153610525712
+    ],
+    "umbral_mejora_x1000": 4.509007862905333,
+    "regla": "promover si pérdida/1000 del champion - pérdida/1000 del challenger > desv. entre pliegues, en el mismo lote"
+  },
+  "volumen": {
+    "banda_relativa_misma_semana_2019": [
+      0.7,
+      1.3
+    ]
+  },
+  "psi": {
+    "aviso": 0.1,
+    "alerta": 0.25,
+    "vigiladas": [
+      "amt",
+      "distancia_km",
+      "edad_en_transaccion",
+      "city_pop",
+      "n_tx_1h",
+      "gasto_1h",
+      "n_tx_24h",
+      "gasto_24h",
+      "monto_medio_previo",
+      "monto_relativo",
+      "segundos_desde_anterior",
+      "hora",
+      "categoria",
+      "canal",
+      "state",
+      "es_nocturna",
+      "es_menor_de_edad",
+      "es_multicategoria"
+    ],
+    "excluidas": {
+      "n_tx_previas": "contador acumulado del historial del cliente: crece por construcción con el tiempo, así que su PSI contra cualquier referencia pasada es alto aunque la población no cambie",
+      "dia_semana": "en un lote de 7 días cada día aparece una vez; su PSI solo mide cómo se reparte el volumen entre los días (semanas de feriados), algo que ya vigila la alerta de volumen",
+      "es_fin_de_semana": "se deriva de dia_semana (sábado o domingo) y hereda el mismo problema: mide el reparto del volumen dentro de la semana, no un cambio de la población"
+    },
+    "max_natural_vigiladas": 0.1316936244890208,
+    "resumen_natural": [
+      {
+        "variable": "n_tx_previas",
+        "vigilada": false,
+        "median": 6.0006,
+        "max": 6.9247
+      },
+      {
+        "variable": "dia_semana",
+        "vigilada": false,
+        "median": 0.1023,
+        "max": 0.3614
+      },
+      {
+        "variable": "es_fin_de_semana",
+        "vigilada": false,
+        "median": 0.0328,
+        "max": 0.2816
+      },
+      {
+        "variable": "monto_medio_previo",
+        "vigilada": true,
+        "median": 0.0771,
+        "max": 0.1317
+      },
+      {
+        "variable": "n_tx_24h",
+        "vigilada": true,
+        "median": 0.0007,
+        "max": 0.0424
+      },
+      {
+        "variable": "gasto_24h",
+        "vigilada": true,
+        "median": 0.0018,
+        "max": 0.0343
+      },
+      {
+        "variable": "segundos_desde_anterior",
+        "vigilada": true,
+        "median": 0.0009,
+        "max": 0.0112
+      },
+      {
+        "variable": "edad_en_transaccion",
+        "vigilada": true,
+        "median": 0.0066,
+        "max": 0.0108
+      },
+      {
+        "variable": "state",
+        "vigilada": true,
+        "median": 0.0047,
+        "max": 0.0097
+      },
+      {
+        "variable": "hora",
+        "vigilada": true,
+        "median": 0.0021,
+        "max": 0.0047
+      },
+      {
+        "variable": "distancia_km",
+        "vigilada": true,
+        "median": 0.0008,
+        "max": 0.0035
+      },
+      {
+        "variable": "amt",
+        "vigilada": true,
+        "median": 0.0006,
+        "max": 0.0034
+      },
+      {
+        "variable": "monto_relativo",
+        "vigilada": true,
+        "median": 0.0008,
+        "max": 0.003
+      },
+      {
+        "variable": "categoria",
+        "vigilada": true,
+        "median": 0.0014,
+        "max": 0.0025
+      },
+      {
+        "variable": "city_pop",
+        "vigilada": true,
+        "median": 0.001,
+        "max": 0.0021
+      },
+      {
+        "variable": "gasto_1h",
+        "vigilada": true,
+        "median": 0.0001,
+        "max": 0.0015
+      },
+      {
+        "variable": "n_tx_1h",
+        "vigilada": true,
+        "median": 0.0,
+        "max": 0.0011
+      },
+      {
+        "variable": "es_menor_de_edad",
+        "vigilada": true,
+        "median": 0.0001,
+        "max": 0.001
+      },
+      {
+        "variable": "canal",
+        "vigilada": true,
+        "median": 0.0002,
+        "max": 0.0007
+      },
+      {
+        "variable": "es_nocturna",
+        "vigilada": true,
+        "median": 0.0001,
+        "max": 0.0005
+      },
+      {
+        "variable": "es_multicategoria",
+        "vigilada": true,
+        "median": 0.0,
+        "max": 0.0004
+      }
+    ]
+  },
+  "soporte": {
+    "amt": [
+      1.0,
+      28948.9
+    ],
+    "distancia_km": [
+      0.022254515638296814,
+      152.11717310594932
+    ],
+    "edad_en_transaccion": [
+      13.0,
+      95.0
+    ],
+    "city_pop": [
+      23.0,
+      2906700.0
+    ],
+    "n_tx_1h": [
+      0.0,
+      6.0
+    ],
+    "gasto_1h": [
+      0.0,
+      27390.12
+    ],
+    "n_tx_24h": [
+      0.0,
+      35.0
+    ],
+    "gasto_24h": [
+      0.0,
+      29773.370000000003
+    ],
+    "monto_medio_previo": [
+      1.03,
+      1433.54
+    ],
+    "monto_relativo": [
+      0.0021764303751552103,
+      676.3881278538813
+    ],
+    "segundos_desde_anterior": [
+      0.0,
+      1341471.0
+    ]
+  },
+  "nulos_referencia": {
+    "amt": 0.0,
+    "distancia_km": 0.0,
+    "edad_en_transaccion": 0.0,
+    "city_pop": 0.0,
+    "n_tx_1h": 0.0,
+    "gasto_1h": 0.0,
+    "n_tx_24h": 0.0,
+    "gasto_24h": 0.0,
+    "monto_medio_previo": 0.0007416714591406108,
+    "monto_relativo": 0.0007416714591406108,
+    "segundos_desde_anterior": 0.0007416714591406108
+  },
+  "datos": {
+    "fuera_de_soporte_max": 0.01
+  }
+}
