@@ -143,6 +143,32 @@ services:
     mem_limit: 1536m
     restart: unless-stopped
 
+  # ------------------------------------------------------------------ API
+  # Servicio de predicción online. El modelo NO está en la imagen: se carga de MLflow por alias y se recarga
+  # cada RECARGA_SEGUNDOS, así que mover @champion (promoción o rollback) no reconstruye la imagen.
+  api:
+    build: ./api
+    image: ${API_IMAGEN:-centinela-api:local}
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    env_file:
+      - path: .env                                  # SNOWFLAKE_* y ADMIN_TOKEN
+        required: false
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODELO_URI: models:/centinela-modelo@champion
+      RECARGA_SEGUNDOS: "${RECARGA_SEGUNDOS:-30}"
+      MODO_RESPALDO: "${MODO_RESPALDO:-false}"
+      REGISTRO_SNOWFLAKE: "${REGISTRO_SNOWFLAKE:-true}"
+      SNOWFLAKE_PRIVATE_KEY_PATH: /secrets/snowflake_key.p8
+    volumes:
+      - ./secrets:/secrets:ro
+    ports:
+      - "8000:8000"
+    mem_limit: 1536m
+    restart: unless-stopped
+
   # ------------------------------------------------------------------ dbt
   dbt:
     build: ./dbt

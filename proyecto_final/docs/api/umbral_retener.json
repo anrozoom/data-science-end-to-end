@@ -1,0 +1,53 @@
+{
+  "regla": "u2 = menor puntaje con precisión OOF >= 90% entre las alertas con puntaje >= u2",
+  "modelo": "centinela-modelo@champion (HistGradientBoosting por defecto, PSet 3)",
+  "datos_sha256": "9be410f73fb8c090e7647fc27559665c28431d29a0652548d16d8b932d9e9bce",
+  "oof_filas": 995049,
+  "oof_fraudes": 5276,
+  "oof_dias": 389,
+  "umbral_verificar_u1": 0.23999331074785862,
+  "umbral_retener_u2": 0.8493347639207266,
+  "precision_en_u2": 0.9000745712155108,
+  "alertas_retener_oof": 5364,
+  "cv_auc_pr_media": 0.9612441636851475,
+  "cv_perdida_neta_oof": 34324.80999999726,
+  "negocio_oof_con_u1": {
+    "perdida_neta": 34324.81,
+    "fraude_no_detectado_usd": 17739.81,
+    "falsas_alarmas": 3317,
+    "fraudes_detectados": 5127,
+    "fraudes_totales": 5276,
+    "recall": 0.9717589082638363,
+    "precision": 0.6071766935101848,
+    "pct_legitimas_alertadas": 0.3351273473816724
+  },
+  "decisiones": [
+    {
+      "decision": "aprobar",
+      "transacciones": 986605,
+      "fraudes": 149,
+      "precision": 0.0002,
+      "pct_de_los_fraudes": 2.82,
+      "por_dia_promedio": 2536.3,
+      "por_dia_p95": 4055.2
+    },
+    {
+      "decision": "verificar",
+      "transacciones": 3080,
+      "fraudes": 299,
+      "precision": 0.0971,
+      "pct_de_los_fraudes": 5.67,
+      "por_dia_promedio": 7.9,
+      "por_dia_p95": 15.0
+    },
+    {
+      "decision": "retener",
+      "transacciones": 5364,
+      "fraudes": 4828,
+      "precision": 0.9001,
+      "pct_de_los_fraudes": 91.51,
+      "por_dia_promedio": 13.8,
+      "por_dia_p95": 31.0
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+decision,transacciones,fraudes,precision,pct_de_los_fraudes,por_dia_promedio,por_dia_p95
+aprobar,986605,149,0.0002,2.82,2536.3,4055.2
+verificar,3080,299,0.0971,5.67,7.9,15.0
+retener,5364,4828,0.9001,91.51,13.8,31.0

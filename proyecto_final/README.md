@@ -1,6 +1,6 @@
 # Proyecto final · Centinela: detección de fraude con tarjeta, de punta a punta
 
-> **Estado: en construcción (fase 1 de 8 terminada).** Este README se completa al final con el orden de ejecución completo desde cero.
+> **Estado: en construcción (fases 1 y 2 de 8 terminadas).** Este README se completa al final con el orden de ejecución completo desde cero.
 
 Proyecto **Centinela**: puntuar cada transacción con tarjeta en el momento de la autorización y decidir **aprobar, verificar o retener**, en reemplazo de las reglas fijas del banco.
 
@@ -59,6 +59,47 @@ bash kestra/desplegar_flows.sh
 - Si algo agota sus reintentos, el bloque `errors` registra en el log qué tarea falló.
 
 **Una línea `ERRO` en el log de `spark_obt`:** Spark escribe sus `WARN` por stderr y Kestra los muestra como error. No significan que la tarea falló: el estado de la tarea lo dice.
+
+### Demo de la ingesta (para el video, ~4 min)
+
+```bash
+bash scripts/demo_ingesta.sh            # por defecto 2020-12-30 a 2020-12-31, forzar=true, transformar=true
+```
+
+Imprime el id de la ejecución. En Kestra → Executions → ese id → **Gantt** se ven las 4 tareas pasar a verde. En la ejecución de prueba `6eTq7Tbc21Q2Y81mltsbhh` tardó **3 min 45 s**: `cargar_raw` 21 s, `dbt_build` 38 s, `spark_obt` 2 min 39 s y `validar_obt` 6 s. GOLD y la OBT se reconstruyen desde RAW completo, así que el resultado es el mismo de la reconstrucción total.
+
+## Fase 2 · API de inferencia (patrón online)
+
+**Patrón: online.** La decisión del PSet 1 (aprobar, verificar o retener) se toma **en el momento de la autorización**, en milisegundos. Las transacciones llegan de forma continua: ~2.500 por día en promedio en el dataset. Si la predicción llega tarde, la compra ya se aprobó y el fraude ya ocurrió. Kestra simula el tráfico de producción hacia la API (fase 4).
+
+**Cuándo sería batch:** si la decisión fuera revisar al día siguiente las compras ya aprobadas, por ejemplo para iniciar contracargos o bloquear la tarjeta antes del próximo ciclo. Ahí una predicción de horas de antigüedad no pierde valor.
+
+`api/` (FastAPI, imagen `centinela-api`, puerto **8000**, servicio `api` del compose):
+
+| Endpoint | Qué devuelve |
+|---|---|
+| `GET /salud` | Estado, si el modelo cargó, si está en respaldo y el estado del registro en Snowflake |
+| `GET /modelo` | Nombre, versión, alias, `run_id` y los dos umbrales del modelo en uso |
+| `POST /predecir` | Probabilidad, **decisión** (`aprobar` / `verificar` / `retener`), versión, `run_id` e `id_prediccion` |
+| `POST /predecir_lote` | Lo mismo para varias transacciones (tráfico simulado). Cada fila queda como una predicción individual con su id |
+| `POST /respaldo` | **Interruptor**, protegido con la cabecera `X-Token` (`ADMIN_TOKEN` de `.env`): `{"activo": true}` fuerza las reglas fijas del PSet 1 |
+| `POST /recargar` | Protegido: vuelve a resolver el alias en ese momento |
+| `GET /metricas` | Solicitudes por código HTTP y latencias p50 y p95 |
+
+- **Modelo:** se carga desde `models:/centinela-modelo@champion`. Un hilo vuelve a resolver el alias cada `RECARGA_SEGUNDOS` (30 s): mover el alias en MLflow cambia el modelo **sin reconstruir la imagen**.
+- **Umbrales:** se leen de los tags de la versión, `umbral_decision` = verificar (0,2400) y `umbral_retener` (0,8493).
+- **Validación:** Pydantic con los tipos de la firma de MLflow, rangos de validez y categorías vistas en entrenamiento. Una entrada inválida devuelve **422** con un mensaje que dice qué campo falló (ejemplos en `docs/api/ejemplos_422.json`).
+- **Respaldo:** si el modelo no carga, o si el interruptor está activo, responde con las reglas fijas e indica `"respaldo": true`.
+- **Registro:** cada predicción va a `CENTINELA.PRODUCCION.PREDICCIONES` (id, timestamp, entradas, salida, decisión, versión, `run_id`, respaldo y latencia en ms) y cada solicitud, a `PRODUCCION.SOLICITUDES`. Se escriben en segundo plano y por microlotes, así que no suman latencia a la respuesta. Trazabilidad de punta a punta en `docs/api/trazabilidad_ejemplo.json`.
+
+```bash
+docker compose up -d api
+curl -s localhost:8000/modelo
+curl -s -X POST localhost:8000/predecir -H 'Content-Type: application/json' -d @docs/api/ejemplo_solicitud.json
+curl -s -X POST localhost:8000/respaldo -H "X-Token: $(sed -n 's/^ADMIN_TOKEN=//p' .env)" -H 'Content-Type: application/json' -d '{"activo": true}'
+```
+
+Ejemplo de respuesta (`docs/api/ejemplo_respuesta.json`): una transacción de fraude real de la prueba devuelve `probabilidad` 0,9815 → `decision: "retener"`, versión 1, `run_id 70bfd857…`.
 
 ## Snowflake
 

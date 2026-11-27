@@ -1,0 +1,30 @@
+{
+  "prediccion": {
+    "id_prediccion": "ff9db1f2-a32f-46ad-a4e7-1c4e1b304a0d",
+    "ts_utc": "2026-11-27 01:05:02.872359",
+    "trans_num": "c41ee8fafceb3d02a63ef5f5a988f5f2",
+    "probabilidad": "0.9815271962865487",
+    "decision": "retener",
+    "latencia_ms": "16.545701000040935"
+  },
+  "modelo": {
+    "nombre": "centinela-modelo",
+    "version": "1",
+    "run_id": "70bfd857902b4cc188d52a94d934c442",
+    "corrida": "final_champion_hist_gradient_boosting",
+    "fase": "final"
+  },
+  "datos_de_entrenamiento": {
+    "tabla": "CENTINELA.OBT.TRANSACCIONES_OBT",
+    "fecha_corte": "2026-11-18 14:52:45.511 -0800",
+    "sha256_snapshot": "9be410f73fb8c090e7647fc27559665c28431d29a0652548d16d8b932d9e9bce"
+  },
+  "gold": {
+    "tabla": "CENTINELA.GOLD.FCT_TRANSACCIONES",
+    "fecha_sk": "20200701",
+    "cliente_sk": "f259836d9e1abab8a4ce95d574840070",
+    "categoria_sk": "4e84631ad5024923374969e5aa210c36",
+    "amt": "1001.99",
+    "is_fraud": 1
+  }
+}

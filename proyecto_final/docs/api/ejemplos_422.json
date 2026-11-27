@@ -1,0 +1,27 @@
+[
+  {
+    "caso": "campo faltante (sin amt)",
+    "codigo": 422,
+    "mensaje": "Entrada inválida: campo 'amt': Field required"
+  },
+  {
+    "caso": "tipo incorrecto (amt='abc')",
+    "codigo": 422,
+    "mensaje": "Entrada inválida: campo 'amt': Input should be a valid number, unable to parse string as a number"
+  },
+  {
+    "caso": "categoría desconocida (categoria='casino')",
+    "codigo": 422,
+    "mensaje": "Entrada inválida: campo 'categoria': Input should be 'entertainment', 'food_dining', 'gas_transport', 'grocery_net', 'grocery_pos', 'health_fitness', 'home', 'kids_pets', 'misc_net', 'misc_pos', 'personal_care', 'shopping_net', 'shopping_pos' or 'travel'"
+  },
+  {
+    "caso": "fuera de rango (hora=25)",
+    "codigo": 422,
+    "mensaje": "Entrada inválida: campo 'hora': Input should be less than or equal to 23"
+  },
+  {
+    "caso": "campo extra (montoo)",
+    "codigo": 422,
+    "mensaje": "Entrada inválida: campo 'montoo': Extra inputs are not permitted"
+  }
+]
