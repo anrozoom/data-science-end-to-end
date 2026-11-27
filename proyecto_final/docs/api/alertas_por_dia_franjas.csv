@@ -1,0 +1,4 @@
+franja,por_dia_promedio,por_dia_p95,por_dia_maximo
+verificar (0.24 a 0.85),7.9,15.0,33
+retener (0.85 o más),13.8,31.0,42
+total de alertas (verificar + retener),21.7,42.0,66

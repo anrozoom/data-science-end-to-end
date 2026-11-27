@@ -65,6 +65,17 @@ def main(registrar: bool) -> dict:
     tabla["por_dia_promedio"] = [round(float(por_dia.get(d, pd.Series(0)).mean()), 1) for d in tabla["decision"]]
     tabla["por_dia_p95"] = [round(float(por_dia.get(d, pd.Series(0)).quantile(.95)), 1) for d in tabla["decision"]]
 
+    alertas_dia = por_dia.reindex(columns=["verificar", "retener"], fill_value=0).sum(axis=1)
+    franjas = pd.DataFrame({
+        "franja": [f"verificar ({u1:.2f} a {u2:.2f})", f"retener ({u2:.2f} o más)", "total de alertas (verificar + retener)"],
+        "por_dia_promedio": [round(float(por_dia.get("verificar", pd.Series(0)).mean()), 1),
+                             round(float(por_dia.get("retener", pd.Series(0)).mean()), 1), round(float(alertas_dia.mean()), 1)],
+        "por_dia_p95": [round(float(por_dia.get("verificar", pd.Series(0)).quantile(.95)), 1),
+                        round(float(por_dia.get("retener", pd.Series(0)).quantile(.95)), 1), round(float(alertas_dia.quantile(.95)), 1)],
+        "por_dia_maximo": [int(por_dia.get("verificar", pd.Series(0)).max()), int(por_dia.get("retener", pd.Series(0)).max()),
+                           int(alertas_dia.max())],
+    })
+    franjas.to_csv(DOCS / "alertas_por_dia_franjas.csv", index=False)
     resultado = {
         "regla": f"u2 = menor puntaje con precisión OOF >= {PRECISION_OBJETIVO:.0%} entre las alertas con puntaje >= u2",
         "modelo": "centinela-modelo@champion (HistGradientBoosting por defecto, PSet 3)",
@@ -75,6 +86,7 @@ def main(registrar: bool) -> dict:
         "cv_auc_pr_media": res["cv_auc_pr_media"], "cv_perdida_neta_oof": res["cv_perdida_neta_oof"],
         "negocio_oof_con_u1": resumen_negocio(yy, s, ent["amt"].to_numpy()[idx], u1),
         "decisiones": tabla.to_dict(orient="records"),
+        "alertas_por_dia_franjas_excluyentes": franjas.to_dict(orient="records"),
     }
     DOCS.mkdir(parents=True, exist_ok=True)
     (DOCS / "umbral_retener.json").write_text(json.dumps(resultado, indent=2, ensure_ascii=False, default=float), encoding="utf-8")

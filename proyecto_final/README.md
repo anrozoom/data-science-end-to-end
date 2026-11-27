@@ -1,6 +1,6 @@
 # Proyecto final · Centinela: detección de fraude con tarjeta, de punta a punta
 
-> **Estado: en construcción (fases 1 y 2 de 8 terminadas).** Este README se completa al final con el orden de ejecución completo desde cero.
+> **Estado: en construcción (fases 1 a 3 de 8 terminadas).** Este README se completa al final con el orden de ejecución completo desde cero.
 
 Proyecto **Centinela**: puntuar cada transacción con tarjeta en el momento de la autorización y decidir **aprobar, verificar o retener**, en reemplazo de las reglas fijas del banco.
 
@@ -100,6 +100,33 @@ curl -s -X POST localhost:8000/respaldo -H "X-Token: $(sed -n 's/^ADMIN_TOKEN=//
 ```
 
 Ejemplo de respuesta (`docs/api/ejemplo_respuesta.json`): una transacción de fraude real de la prueba devuelve `probabilidad` 0,9815 → `decision: "retener"`, versión 1, `run_id 70bfd857…`.
+
+## Fase 3 · Pruebas y CI/CD
+
+```bash
+pip install -r api/requirements.txt pytest==8.3.3 httpx==0.27.2
+pytest tests -v            # 16 pasan y 1 xfail esperado (falla conocida del modelo)
+```
+
+| Archivo | Qué prueba |
+|---|---|
+| `tests/test_contrato.py` | Entrada válida → 200 con el esquema esperado. Campo faltante, tipo incorrecto, categoría desconocida, fuera de rango y campo extra → **422** con el campo que falló. La decisión respeta los dos umbrales. El lote devuelve un id por fila |
+| `tests/test_modelo.py` | El modelo exportado (`tests/fixtures/modelo_champion`, con `mlflow.sklearn.save_model`) reproduce la **AUC-PR registrada en MLflow** (`ci_muestra_auc_pr` = 0,99778) sobre la muestra fija `tests/fixtures/muestra_prueba.parquet` (todos los fraudes de la prueba + 8.000 legítimas, semilla 42), con tolerancia 1e-9. Es más alta que la de la prueba completa (0,9655) porque la muestra tiene ~20 % de fraude |
+| `tests/test_comportamiento.py` | **B2:** una compra nocturna no es menos riesgosa que la misma de día (97,5 % no baja; se exige ≥ 95 % y Δ medio > 0). **B5:** un monto alto para su categoría (1,5× p95) no es menos riesgoso que uno típico (0,5× p95) (94,8 %; se exige ≥ 90 %). **B1, `xfail` estricto:** un monto muy por encima del p95 (5×) no baja la probabilidad. **El modelo no lo cumple** (ver `docs/cambios.md`) |
+| `tests/test_respaldo.py` | Si el modelo no carga, responde con las reglas fijas e indica `respaldo: true`. El interruptor exige token y fuerza el respaldo. Las reglas coinciden con las del PSet 1 |
+
+**Por qué la tolerancia es de 1e-9:** la predicción de HistGradientBoosting es determinista. Entre máquinas solo cambia el redondeo de punto flotante (~1e-15), mientras que un cambio real del modelo mueve la AUC-PR mucho más.
+
+**GitHub Actions** (en la raíz del repo, con una copia idéntica en `proyecto_final/.github/workflows/`):
+- `ci.yml`, en cada push y pull request:
+  1. verifica que las dos copias de los workflows sean idénticas;
+  2. instala las dependencias;
+  3. **construye la imagen** de la API;
+  4. corre **pytest**;
+  5. hace una prueba de humo de la imagen: la arranca con el modelo del fixture y le pide `/salud` y `/predecir`.
+- `cd.yml`: cuando `ci` termina **en verde** para un push a **`master`** (la rama por defecto del fork; el enunciado dice `main`), publica la imagen en **GitHub Container Registry** como `ghcr.io/anrozoom/centinela-api:<hash del commit>` y `:latest`. El `docker-compose.yml` usa esa imagen (variable `API_IMAGEN`).
+- **El código se despliega solo, pero el modelo no.** Promover un modelo cambia decisiones sobre dinero y clientes reales, así que exige comparar champion y challenger con la regla de promoción y la aprobación de una persona (fase 5). Por eso el modelo vive en MLflow y la imagen lo carga por alias.
+- **Qué queda fuera de CI:** Snowflake, Kestra, Spark y el servidor de MLflow (no son accesibles desde GitHub). La API se prueba con el modelo del fixture y sin registro en Snowflake.
 
 ## Snowflake
 

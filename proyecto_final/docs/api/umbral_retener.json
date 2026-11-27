@@ -49,5 +49,25 @@
       "por_dia_promedio": 13.8,
       "por_dia_p95": 31.0
     }
+  ],
+  "alertas_por_dia_franjas_excluyentes": [
+    {
+      "franja": "verificar (0.24 a 0.85)",
+      "por_dia_promedio": 7.9,
+      "por_dia_p95": 15.0,
+      "por_dia_maximo": 33
+    },
+    {
+      "franja": "retener (0.85 o más)",
+      "por_dia_promedio": 13.8,
+      "por_dia_p95": 31.0,
+      "por_dia_maximo": 42
+    },
+    {
+      "franja": "total de alertas (verificar + retener)",
+      "por_dia_promedio": 21.7,
+      "por_dia_p95": 42.0,
+      "por_dia_maximo": 66
+    }
   ]
 }

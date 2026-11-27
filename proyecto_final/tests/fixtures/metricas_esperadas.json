@@ -1,0 +1,11 @@
+{
+  "muestra": "todos los fraudes de la prueba + 8000 leg\u00edtimas (semilla 42)",
+  "filas": 10012,
+  "fraudes": 2012,
+  "auc_pr_muestra": 0.9977791597765034,
+  "metrica_mlflow": "ci_muestra_auc_pr",
+  "run_id": "70bfd857902b4cc188d52a94d934c442",
+  "version": "1",
+  "datos_sha256": "9be410f73fb8c090e7647fc27559665c28431d29a0652548d16d8b932d9e9bce",
+  "prueba_completa_auc_pr_registrada": 0.9654700363040251
+}

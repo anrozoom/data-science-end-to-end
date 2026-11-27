@@ -147,8 +147,10 @@ services:
   # Servicio de predicción online. El modelo NO está en la imagen: se carga de MLflow por alias y se recarga
   # cada RECARGA_SEGUNDOS, así que mover @champion (promoción o rollback) no reconstruye la imagen.
   api:
+    # Imagen publicada por cd.yml en GitHub Container Registry (tag = hash del commit). Para fijar una
+    # versión: API_IMAGEN=ghcr.io/anrozoom/centinela-api:<sha> en .env. "build" permite compilarla local.
     build: ./api
-    image: ${API_IMAGEN:-centinela-api:local}
+    image: ${API_IMAGEN:-ghcr.io/anrozoom/centinela-api:latest}
     depends_on:
       mlflow:
         condition: service_healthy

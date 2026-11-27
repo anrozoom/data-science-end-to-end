@@ -1,0 +1,47 @@
+# CD del proyecto final: cuando el workflow "ci" termina EN VERDE para un push a master (la rama por
+# defecto de este fork; el enunciado dice "main"), construye la imagen de la API y la publica en GitHub
+# Container Registry con el hash del commit como tag (y "latest"). docker-compose.yml usa esa imagen.
+# El código se despliega solo; el MODELO no: lo promueve una persona moviendo el alias en MLflow.
+# Copia idéntica en proyecto_final/.github/workflows/cd.yml (GitHub solo ejecuta los de la raíz).
+name: cd
+
+on:
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+    branches: [master]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publicar-imagen:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Nombre de la imagen (GHCR exige minúsculas)
+        id: img
+        run: echo "nombre=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/centinela-api" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: proyecto_final/api
+          push: true
+          tags: |
+            ${{ steps.img.outputs.nombre }}:${{ github.event.workflow_run.head_sha }}
+            ${{ steps.img.outputs.nombre }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha }}
+            org.opencontainers.image.description=Centinela - API de riesgo de fraude

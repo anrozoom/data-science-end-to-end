@@ -1,0 +1,8 @@
+{
+  "nombre": "centinela-modelo",
+  "alias": "champion (copia para CI)",
+  "version": "1",
+  "run_id": "70bfd857902b4cc188d52a94d934c442",
+  "umbral_verificar": 0.23999331074785862,
+  "umbral_retener": 0.8493347639207266
+}

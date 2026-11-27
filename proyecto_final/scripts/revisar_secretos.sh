@@ -32,7 +32,8 @@ done
 if grep -nE -- '-----BEGIN [A-Z ]*PRIVATE KEY-----|KGAT_[A-Za-z0-9]{16,}|AIza[0-9A-Za-z_-]{30,}' <<<"$DIFF"; then
   echo "ALERTA: posible llave privada o token en el diff"; fallas=1
 fi
-if git diff --staged --name-only | grep -E '(^|/)\.env($|\.kestra$)|\.p8$|\.pub$|\.pem$|\.parquet$'; then
+# Excepción explícita: la muestra fija de las pruebas (tests/fixtures/*.parquet) sí se versiona.
+if git diff --staged --name-only | grep -v '^proyecto_final/tests/fixtures/' | grep -E '(^|/)\.env($|\.kestra$)|\.p8$|\.pub$|\.pem$|\.parquet$'; then
   echo "ALERTA: archivo de credenciales o de datos en staging"; fallas=1
 fi
 fuera=$(git diff --staged --name-only | while read -r a; do ok=0; for p in $PERMITIDOS; do [[ "$a" == $p* ]] && ok=1; done; [[ $ok == 0 ]] && echo "$a"; done)
