@@ -1,0 +1,4 @@
+monto_llevado_a,fraudes,prob_baja_pct,delta_prob_mediana,delta_prob_media,decision_empeora_pct,decision_mejora_pct,retener_antes_pct,retener_despues_pct,aprobados_despues_pct
+"max(monto, 2xp95)",2012,43.2,0.0,-0.0931,14.3,1.6,91.6,79.9,11.0
+"max(monto, 5xp95)",2012,90.8,-0.0207,-0.1248,22.6,2.9,91.6,73.0,9.3
+"max(monto, 10xp95)",2012,92.6,-0.0254,-0.1256,23.3,2.3,91.6,72.2,8.7

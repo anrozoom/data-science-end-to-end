@@ -1,16 +1,24 @@
 """Comportamiento de negocio del modelo, sobre la muestra fija de la prueba (tests/fixtures).
 
 Cada prueba cambia UNA cosa de transacciones reales, manteniendo el resto del perfil, y exige que la
-probabilidad no baje en la gran mayoría de los casos y que suba en promedio. Se mide sobre todos los
-casos de la muestra porque HistGradientBoosting no es monótono por construcción: exigir el 100 % fila por
-fila sería falso para cualquier árbol; lo que importa al negocio es la tendencia y su alcance.
+probabilidad no baje en la gran mayoría de los perfiles y que suba en promedio.
+
+Los mínimos son una TOLERANCIA DE NEGOCIO, no el valor medido: un HistGradientBoosting no es monótono por
+construcción (cada árbol parte el espacio en tramos), así que exigir el 100 % fila por fila sería falso
+para cualquier modelo de árboles. El negocio acepta que una fracción pequeña de perfiles se comporte al
+revés, siempre que la tendencia sea la esperada; esas excepciones se revisan caso por caso.
+  - B2 >= 95 %: la hora es una señal fuerte y estable del dominio (2,08 % de fraude de noche frente a
+    0,11 % de día en entrenamiento); se tolera como máximo 1 perfil de cada 20 al revés.
+  - B5 >= 90 %: el monto interactúa con la categoría, el canal y el historial, y el fraude de Sparkov se
+    concentra en una banda de montos; se tolera como máximo 1 perfil de cada 10 al revés.
+Valores medidos en la muestra fija (2026-11-27): B2 97,5 % (Δ medio +0,032), B5 94,8 % (Δ medio +0,154).
 
   B2  Una compra nocturna (23:00) no es menos riesgosa que la misma compra a las 14:00.
   B5  Un monto alto PARA SU CATEGORÍA (1,5 × p95) no es menos riesgoso que uno típico (0,5 × p95).
-  B1  (falla conocida, xfail) Un monto MUY por encima del p95 de su categoría (5 ×) no baja la probabilidad.
-      El modelo NO lo cumple: en Sparkov el fraude más caro del entrenamiento es de USD 1.376 y ninguna de
-      las 780 transacciones con monto > 5 × p95 es fraude, así que aprendió "monto altísimo = legítima".
-      Se documenta en docs/cambios.md y en los criterios de retirada; no se maquilla.
+  B1  (falla conocida, xfail estricto) Un monto MUY por encima del p95 de su categoría (5 ×) no baja la
+      probabilidad. El modelo NO lo cumple: baja en el 90,8 % de los fraudes (mediana −0,021) y la decisión
+      empeora en el 22,6 %. En Sparkov el fraude más caro del entrenamiento es de USD 1.376 y ninguna de
+      las 780 transacciones con monto > 5 × p95 es fraude. Ver docs/hallazgos/monto_fuera_de_soporte.md.
 """
 import json
 from pathlib import Path
