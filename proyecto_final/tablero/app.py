@@ -1,7 +1,8 @@
 """Tablero de monitoreo de Centinela, lote por lote (Streamlit).
 
-Fuente de datos (FUENTE_DATOS): "auto" (por defecto) intenta Snowflake (CENTINELA.PRODUCCION, simulación vigente,
-pasos 0 a 25) y, si no hay conexión, usa los CSV de docs/: monitoreo.csv, alertas.csv y
+Fuente de datos (FUENTE_DATOS o TABLERO_FUENTE): "auto" (por defecto) intenta Snowflake (CENTINELA.PRODUCCION,
+simulación vigente, pasos 0 a 25) y, si no hay conexión o a las tablas les faltan pasos, lotes o métricas de la
+simulación completa, usa los CSV de docs/: monitoreo.csv, alertas.csv y
 simulacion/reentrenamientos_simulacion.csv. "csv" fuerza los CSV; "snowflake" exige la conexión.
 Umbrales: docs/monitoreo/umbrales.json. Reentrenamientos marcados en todos los gráficos por lote.
 """
@@ -16,7 +17,8 @@ import pandas as pd
 import streamlit as st
 
 DOCS = Path(os.environ.get("DOCS_DIR", Path(__file__).resolve().parents[1] / "docs"))
-FUENTE = os.environ.get("FUENTE_DATOS", "auto").lower()
+# FUENTE_DATOS (la pone docker-compose desde TABLERO_FUENTE de .env) o TABLERO_FUENTE directamente: auto | csv | snowflake
+FUENTE = (os.environ.get("FUENTE_DATOS") or os.environ.get("TABLERO_FUENTE") or "auto").lower()
 N_LOTES, D1_DESDE, D2_DESDE = 26, 10, 14
 
 # Paleta de referencia (skill de visualización): categórica en orden fijo; estados reservados para severidad.
@@ -52,6 +54,46 @@ def _snowflake() -> dict:
     return out
 
 
+# Lo mínimo que necesita el tablero de la simulación completa: si a Snowflake le falta algo (por ejemplo, solo hay
+# tablas parciales que dejaron las demostraciones del video, con pasos >= 100), se usan los CSV de docs/.
+METRICAS_REQUERIDAS = {
+    "sistema": {"latencia_online_p50_ms", "latencia_online_p95_ms", "volumen", "volumen_relativo_2019"},
+    "modelo": {"tasa_verificar", "tasa_retener", "tasa_alertas", "prob_p95"},
+    "datos": {"psi"},
+    "desempeño": {"auc_pr", "perdida_x1000", "perdida_neta", "perdida_reglas", "perdida_sin_modelo", "filas", "prevalencia", "recall"},
+}
+COLUMNAS_REQUERIDAS = {
+    "monitoreo": {"paso", "lote", "grupo", "metrica", "variable", "valor", "modelo_version"},
+    "alertas": {"paso", "lote", "severidad", "id_alerta"},
+    "reentrenamientos": {"paso", "motivo", "decision", "challenger_version", "mejora_x1000"},
+}
+
+
+def validar(datos: dict) -> None:
+    """Lanza ValueError si los datos no cubren la simulación completa (26 pasos y lotes etiquetados 0 a 23)."""
+    faltas = []
+    for tabla, cols in COLUMNAS_REQUERIDAS.items():
+        d = datos.get(tabla)
+        if d is None or d.empty:
+            faltas.append(f"{tabla} vacía")
+        elif cols - set(d.columns):
+            faltas.append(f"{tabla} sin {sorted(cols - set(d.columns))}")
+    mon = datos.get("monitoreo")
+    if mon is not None and not mon.empty and not (COLUMNAS_REQUERIDAS["monitoreo"] - set(mon.columns)):
+        pasos = set(pd.to_numeric(mon["paso"], errors="coerce").dropna().astype(int))
+        if not set(range(N_LOTES)) <= pasos:
+            faltas.append(f"monitoreo con {len(pasos & set(range(N_LOTES)))} de {N_LOTES} pasos")
+        for grupo, metricas in METRICAS_REQUERIDAS.items():
+            faltan = metricas - set(mon.loc[mon["grupo"] == grupo, "metrica"])
+            if faltan:
+                faltas.append(f"sin métricas de {grupo}: {sorted(faltan)}")
+        lotes = set(pd.to_numeric(mon.loc[mon["grupo"] == "desempeño", "lote"], errors="coerce").dropna().astype(int))
+        if not set(range(N_LOTES - 2)) <= lotes:
+            faltas.append(f"desempeño con {len(lotes & set(range(N_LOTES - 2)))} de {N_LOTES - 2} lotes etiquetados")
+    if faltas:
+        raise ValueError("tablas incompletas para la simulación completa: " + "; ".join(faltas[:4]))
+
+
 def _csv() -> dict:
     return {"monitoreo": pd.read_csv(DOCS / "monitoreo.csv"), "alertas": pd.read_csv(DOCS / "alertas.csv"),
             "reentrenamientos": pd.read_csv(DOCS / "simulacion" / "reentrenamientos_simulacion.csv")}
@@ -62,13 +104,17 @@ def cargar(fuente: str) -> tuple[dict, str, str | None]:
     aviso = None
     if fuente in ("auto", "snowflake"):
         try:
-            return _snowflake(), "Snowflake (CENTINELA.PRODUCCION)", None
-        except Exception as e:  # noqa: BLE001 - sin conexión: CSV de docs/
+            datos_sf = _snowflake()
+            validar(datos_sf)
+            return datos_sf, "Snowflake (CENTINELA.PRODUCCION)", None
+        except Exception as e:  # noqa: BLE001 - sin conexión o tablas incompletas: CSV de docs/
             if fuente == "snowflake":
                 raise
             aviso = (f"No se pudieron leer las tablas de la simulación en Snowflake ({type(e).__name__}: "
                      f"{str(e).splitlines()[0][:120]}); se usan los CSV de docs/ (exportes de la simulación completa).")
-    return _csv(), "CSV de docs/", aviso
+    datos_csv = _csv()
+    validar(datos_csv)
+    return datos_csv, "CSV de docs/", aviso
 
 
 datos, origen, aviso = cargar(FUENTE)
