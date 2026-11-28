@@ -74,7 +74,7 @@ def reentrenamientos(sf):
         previo = pd.read_csv(anterior)[["run_id", "ts_decision"]].rename(columns={"ts_decision": "ts_previo"})
         r = r.merge(previo, on="run_id", how="left")
         r["ts_decision"] = r["ts_decision"].astype(object).where(r["ts_decision"].notna(), r["ts_previo"])
-    cols = ["run_id", "start_time", "tags.mlflow.runName", "tags.motivo", "paso", "lote_evaluacion", "params.ventana",
+    cols = ["run_id", "start_time", "tags.mlflow.runName", "tags.fase", "tags.motivo", "paso", "lote_evaluacion", "params.ventana",
             "params.champion_version", "challenger_version", "metrics.eval_perdida_x1000_champion",
             "metrics.eval_perdida_x1000_challenger", "metrics.mejora_x1000", "metrics.umbral_mejora_x1000",
             "metrics.eval_auc_pr_champion", "metrics.eval_auc_pr_challenger", "metrics.segundos_entrenamiento",
