@@ -66,7 +66,8 @@ def cargar(fuente: str) -> tuple[dict, str, str | None]:
         except Exception as e:  # noqa: BLE001 - sin conexión: CSV de docs/
             if fuente == "snowflake":
                 raise
-            aviso = f"Sin conexión a Snowflake ({type(e).__name__}); se usan los CSV de docs/."
+            aviso = (f"No se pudieron leer las tablas de la simulación en Snowflake ({type(e).__name__}: "
+                     f"{str(e).splitlines()[0][:120]}); se usan los CSV de docs/ (exportes de la simulación completa).")
     return _csv(), "CSV de docs/", aviso
 
 

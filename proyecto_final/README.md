@@ -236,8 +236,22 @@ grises marcan D1 y D2, y las líneas verticales, los reentrenamientos (continua 
 
 ## Snowflake
 
-- **Cuenta en uso:** la original del PSet 2, con las mismas credenciales por par de llaves (`.env` y `secrets/snowflake_key.p8`, fuera de git). El esquema `PRODUCCION` del PSet 4 se crea una vez como ACCOUNTADMIN con [`snowflake/02_produccion.sql`](snowflake/02_produccion.sql).
-- **Alternativa (cuenta nueva de respaldo):** si la cuenta original no está disponible, ejecuta [`snowflake/01_setup.sql`](snowflake/01_setup.sql) en la cuenta nueva (crea el warehouse, el resource monitor, los esquemas `RAW`…`OBT` y `PRODUCCION`, el rol y el usuario de servicio), genera un par de llaves nuevo y apunta `SNOWFLAKE_ACCOUNT` en `.env` a esa cuenta. Después reconstruye la OBT con la ingesta (fase 1) y verifica su equivalencia con `scripts/huella_obt.py` (referencia en `docs/obt_huella_referencia.json`).
+- **Cuenta en uso desde el 28-nov: la de respaldo.** La cuenta original del PSet 2
+  quedó suspendida el 27-nov al terminar su prueba: las consultas con cómputo fallan con `000666 ... suspended due to lack
+  of payment method` ([docs/simulacion/incidentes.md](docs/simulacion/incidentes.md), §3). La simulación completa de la
+  fase 4 corrió en la cuenta original y sus resultados están exportados en `docs/`.
+- **Pasar a otra cuenta** (lo que se hizo con la de respaldo):
+  1. Ejecutar [`snowflake/01_setup.sql`](snowflake/01_setup.sql) como ACCOUNTADMIN, con la llave pública de
+     `secrets/snowflake_key.pub` (sin las líneas BEGIN/END). Crea el warehouse XS, el resource monitor, los esquemas
+     `RAW`…`OBT` y `PRODUCCION`, el rol y el usuario de servicio.
+  2. Cambiar `SNOWFLAKE_ACCOUNT` en `.env`; `bash scripts/generar_secretos_kestra.sh`;
+     `docker compose up -d --force-recreate kestra api tablero`.
+  3. Ingesta completa (fase 1) y verificación de la OBT con `python scripts/huella_obt.py snowflake --env .env`
+     (referencia en `docs/obt_huella_referencia.json`).
+  4. `python simulacion/construir_lotes.py` y, si solo se necesitan las demostraciones,
+     `python simulacion/cargar_targets_llegados.py` (atajo: el target de los lotes 0 a 23 sin repetir la simulación).
+     Para repetir la simulación completa: `bash scripts/simular_produccion.sh 0 25`.
+- El esquema `PRODUCCION` de la cuenta original se había creado con [`snowflake/02_produccion.sql`](snowflake/02_produccion.sql).
 
 ## Documentación
 

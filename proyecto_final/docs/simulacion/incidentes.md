@@ -49,3 +49,32 @@ debían conservarse, más su solicitud en `SOLICITUDES`. Esas 200 venían de una
 **Corrección:** la tabla `PRODUCCION.SIMULACION` guarda el instante de inicio de la simulación vigente. Todo borrado,
 lectura y monitoreo de la simulación se limita a `LOTE IS NOT NULL AND TS_UTC >= inicio` (`FILTRO_SIM` en
 `src/produccion.py`). Las predicciones anteriores al inicio no se pueden tocar.
+
+## 3. La cuenta original de Snowflake quedó suspendida (27 de noviembre): paso a la cuenta de respaldo
+
+**Qué pasó:** terminó la prueba gratuita de la cuenta original. La conexión con el par de llaves y
+las consultas de metadatos seguían respondiendo (por ejemplo, `COUNT(*)` de la OBT: 1.852.394), pero toda consulta
+que necesita el warehouse fallaba con:
+`000666 (57014): Your account is suspended due to lack of payment method.`
+Sin cómputo no funcionan la ingesta, la escritura de predicciones de la API, `demo_deriva.sh` ni `demo_reentrenamiento.sh`.
+El tablero siguió funcionando con los CSV de `docs/` (su modo de respaldo), y el rollback y el respaldo de la API no
+dependen de Snowflake.
+
+**Cómo se resolvió (2026-11-28), con la cuenta de respaldo prevista desde el inicio del PSet 4:**
+1. Configuración: `snowflake/01_setup.sql` ejecutado como ACCOUNTADMIN con la **misma llave pública** (no se generaron
+   llaves nuevas). En `.env` solo cambió `SNOWFLAKE_ACCOUNT`; se regeneró `.env.kestra` y se recrearon `kestra`, `api` y `tablero`.
+   Verificación: usuario `CENTINELA_SVC`, rol `CENTINELA_ROLE`, warehouse `CENTINELA_WH`, cómputo funcionando.
+2. Ingesta completa en Kestra (`ingesta.yml`, 2019-01-01 a 2020-12-31, `forzar=true`): ejecución `7JHYWGCoTIpIuRQdUX2gpr`, `SUCCESS` en 8 min 14 s (`cargar_raw` 731/731 fechas y 1.852.394 filas en 5 min 23 s; `dbt_build` PASS=75; `spark_obt` 2 min 17 s; `validar_obt` 5.000/5.000). La OBT reconstruida es **idéntica** a la de referencia: SHA-256 de contenido `0af7a5e9…7a9b`, `HASH_AGG` 4472567123843243718, 1.852.394 filas y 9.651 fraudes (`scripts/huella_obt.py`).
+3. Lotes de la simulación (`simulacion/construir_lotes.py`, desde el snapshot local): idénticos a los de la cuenta
+   original, con 338.152 filas en `LOTES` y `docs/simulacion/lotes.csv` sin ningún cambio.
+4. Atajo para las demostraciones (`simulacion/cargar_targets_llegados.py`): el target de los lotes 0 a 23 se copió a
+   `TARGETS_LLEGADOS` (308.056 filas, 1.956 fraudes, las mismas cifras de la simulación) sin volver a correr los 26 pasos.
+5. Comprobaciones: el ensayo del reentrenamiento de demostración (`--ensayo`, sin escribir nada) da lo mismo que en la
+   cuenta original (v5 230,99 frente a challenger 191,35 por 1.000; +39,64 → promover). Una predicción de prueba
+   (`/predecir`, `LOTE` nulo) quedó registrada en `PRODUCCION.PREDICCIONES` sin errores.
+
+**Qué no se trasladó:** las tablas de la simulación completa (`PREDICCIONES`, `SOLICITUDES`, `MONITOREO`, `ALERTAS` y
+`REENTRENAMIENTOS`) quedaron en la cuenta suspendida. Sus resultados están exportados en `docs/` (`monitoreo.csv`,
+`alertas.csv`, `reentrenamientos.csv`, `predicciones.csv`, `simulacion/*.csv`) y el tablero los muestra en modo CSV. La
+simulación se puede repetir en la cuenta nueva con `bash scripts/simular_produccion.sh 0 25` (~27 min más las pausas).
+El registro de modelos (MLflow) es local y no se vio afectado: champion v5.
