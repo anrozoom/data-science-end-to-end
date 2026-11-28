@@ -28,7 +28,7 @@ sale. Fechas en UTC del 2026-11-27.
 | Tuning (≥ 30 configuraciones por modelo) | HistGB 0,9637 (+0,0025, menos que la desviación: no cuenta); RF 0,9394; MLP 0,9284 | `docs/tuning/resumen_tuning.csv` |
 | Champion v1 (HistGB por defecto, run `70bfd857`) en prueba (jul-dic 2020) | AUC-PR **0,9655**; pérdida neta USD 14.649 frente a USD 779.426 de las reglas (−98,1 %); recall 97,4 %; 0,287 % de legítimas alertadas | `docs/seleccion/evaluacion_prueba.csv` |
 | Challenger v2 (RF tuneado, run `24f82ec7`) en prueba | AUC-PR 0,9404; pérdida USD 17.834 | ídem |
-| Corridas del experimento | 102 en el PSet 3; 106 con los 4 reentrenamientos | `docs/corridas.csv` |
+| Corridas del experimento | 102 en el PSet 3; 106 con los 4 reentrenamientos de la simulación; 108 con las 2 demostraciones del video (v7 y v8) | `docs/corridas.csv` |
 
 ## Fase 2 · API de inferencia (patrón online)
 

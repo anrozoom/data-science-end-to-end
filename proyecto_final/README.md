@@ -1,6 +1,10 @@
 # Proyecto final · Centinela: detección de fraude con tarjeta, de punta a punta
 
-> **Estado:** fases 0 a 7 terminadas. El memo técnico y la presentación ejecutiva se entregan aparte, en `docs/`.
+> **Estado:** entregado (tag `pset-04`).
+>
+> 🎥 **Video de la demostración:** https://youtu.be/qiJWg3I9YaM
+> 📄 **Documento técnico:** [docs/PSet4_memo_Zuniga_Salvador.pdf](docs/PSet4_memo_Zuniga_Salvador.pdf)
+> 📊 **Presentación ejecutiva:** [docs/PSet4_presentacion_Zuniga_Salvador.pdf](docs/PSet4_presentacion_Zuniga_Salvador.pdf)
 
 Proyecto **Centinela**: puntuar cada transacción con tarjeta en el momento de la autorización y decidir **aprobar, verificar o retener**, en reemplazo de las reglas fijas del banco.
 
@@ -199,6 +203,10 @@ estado `PAUSED`. El log de la tarea `aviso` muestra la recomendación de la regl
 - **Scripts del video** (guion con tiempos medidos en [docs/demos/guion_video.md](docs/demos/guion_video.md)):
   `demo_deriva.sh` (1 min 6 s), `demo_reentrenamiento.sh` (~35 s hasta la pausa), `demo_rollback.sh` (~30 s) y
   `demo_respaldo.sh` (< 1 s).
+- **Versiones de demostración del video** (no forman parte de la simulación; el champion vuelve a la v5 después de cada una):
+  la **v7** es la demo de la primera grabación, descartada: aprobada en vivo y revertida a la v5 con `demo_rollback.sh` el
+  2026-11-28. La **v8** es la demo de la grabación final ([video](https://youtu.be/qiJWg3I9YaM)): aprobada en vivo y revertida a la v5 en el
+  mismo video. Detalle en [docs/demos/guion_video.md](docs/demos/guion_video.md).
 
 ## Fase 6 · Tablero de monitoreo (Streamlit)
 
@@ -225,8 +233,8 @@ grises marcan D1 y D2, y las líneas verticales, los reentrenamientos (continua 
   como hallazgo y como revisión pendiente.
 - **Notebooks** `06_simulacion_produccion.ipynb` y `07_analisis_monitoreo.ipynb`, ejecutados con Restart + Run All
   (`nbconvert --execute`). Solo leen: no cambian Snowflake ni MLflow. Se generan con `scripts/crear_notebooks.py`.
-- **Exportes** (`python scripts/exportar_docs.py`): `docs/corridas.csv` (las 106 corridas del experimento, incluidos los
-  reentrenamientos), `reentrenamientos.csv`, `monitoreo.csv`, `alertas.csv` y `predicciones.csv`. Este último es una
+- **Exportes** (`python scripts/exportar_docs.py`): `docs/corridas.csv` (las 108 corridas del experimento: 102 del PSet 3, los
+  4 reentrenamientos de la simulación y las 2 demostraciones del video), `reentrenamientos.csv`, `monitoreo.csv`, `alertas.csv` y `predicciones.csv`. Este último es una
   **muestra trazable** de 6.398 de las 338.152 predicciones: todos los fraudes con target llegado, todas las alertas y el
   1 % del resto, cada una con versión, run_id, hash del snapshot y entradas. Se completa con `predicciones_por_lote.csv`
   (agregado completo). La tabla completa vive en `PRODUCCION.PREDICCIONES` y en `data/predicciones_completas.parquet`

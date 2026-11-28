@@ -1,7 +1,7 @@
 {
-  "ts_utc": "2026-11-27T04:53:44+00:00",
+  "ts_utc": "2026-11-28T03:31:12+00:00",
   "normal": {
-    "id_prediccion": "e55d1655-70fd-437a-bed3-5d91e1b97ca8",
+    "id_prediccion": "db3b69e5-a16f-412e-b6b0-4b94d7266d47",
     "trans_num": "c41ee8fafceb3d02a63ef5f5a988f5f2",
     "probabilidad": 0.9921045804864069,
     "decision": "retener",
@@ -13,11 +13,11 @@
     "run_id": "78983a0156364f048c5f2a761da29013",
     "respaldo": false,
     "motivo_respaldo": null,
-    "latencia_ms": 9.076,
-    "timestamp_utc": "2026-11-27T04:53:44.009509"
+    "latencia_ms": 9.298,
+    "timestamp_utc": "2026-11-28T03:31:11.986329"
   },
   "respaldo": {
-    "id_prediccion": "be490b74-41b8-46f8-93f1-198c7ab00af2",
+    "id_prediccion": "20009ffa-50cc-4413-8ea9-47de59db733d",
     "trans_num": "c41ee8fafceb3d02a63ef5f5a988f5f2",
     "probabilidad": null,
     "decision": "verificar",
@@ -29,11 +29,11 @@
     "run_id": "78983a0156364f048c5f2a761da29013",
     "respaldo": true,
     "motivo_respaldo": "interruptor de respaldo activado",
-    "latencia_ms": 0.952,
-    "timestamp_utc": "2026-11-27T04:53:44.058153"
+    "latencia_ms": 0.817,
+    "timestamp_utc": "2026-11-28T03:31:12.032709"
   },
   "restaurado": {
-    "id_prediccion": "9b21f6e8-c90f-4fcb-9226-9c6345b9c86a",
+    "id_prediccion": "99d62b5f-2aed-402e-9af1-9e7be622f527",
     "trans_num": "c41ee8fafceb3d02a63ef5f5a988f5f2",
     "probabilidad": 0.9921045804864069,
     "decision": "retener",
@@ -45,7 +45,7 @@
     "run_id": "78983a0156364f048c5f2a761da29013",
     "respaldo": false,
     "motivo_respaldo": null,
-    "latencia_ms": 8.813,
-    "timestamp_utc": "2026-11-27T04:53:44.122370"
+    "latencia_ms": 9.208,
+    "timestamp_utc": "2026-11-28T03:31:12.105942"
   }
 }

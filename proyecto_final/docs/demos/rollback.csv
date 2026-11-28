@@ -1,3 +1,5 @@
 ts_utc,motivo,alias,version_antes,version_despues,api_version_despues,run_id_despues,segundos_hasta_servir
 2026-11-27 04:52:42,rollback,champion,5,4,4,e14ea8daa40d4dd0b0c34587908b2167,30.1
 2026-11-27 04:53:13,restaurar,champion,4,5,5,78983a0156364f048c5f2a761da29013,30.1
+2026-11-28 03:01:39,restaurar,champion,7,5,5,78983a0156364f048c5f2a761da29013,26.1
+2026-11-28 03:30:32,restaurar,champion,8,5,5,78983a0156364f048c5f2a761da29013,4.0

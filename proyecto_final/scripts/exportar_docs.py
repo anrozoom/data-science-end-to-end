@@ -53,19 +53,35 @@ def corridas(sf):
 
 
 def reentrenamientos(sf):
+    """Fuente principal: las etiquetas y métricas de cada corrida en MLflow (local, tiene todos los reentrenamientos).
+    PRODUCCION.REENTRENAMIENTOS de la cuenta vigente solo completa la hora de la decisión: la simulación corrió en la
+    cuenta original, suspendida el 27-nov (docs/simulacion/incidentes.md), y para esas corridas se conserva la hora del
+    exporte anterior."""
+    from mlflow import MlflowClient
     r = _runs()
     r = r[r["tags.fase"] == "reentrenamiento"].copy()
-    d = sf.sql(f"SELECT RUN_ID, PASO, LOTE_EVALUACION, CHALLENGER_VERSION, RECOMENDACION, DECISION, MOTIVO_DECISION, TS_DECISION "
-               f"FROM PRODUCCION.REENTRENAMIENTOS WHERE INICIO_SIMULACION = {INICIO_SIM_SQL}")
-    r = r.merge(d, left_on="run_id", right_on="run_id", how="left")
+    version = {v.run_id: v.version for v in MlflowClient().search_model_versions(f"name='{NOMBRE_MODELO}'")}
+    r["challenger_version"] = r["run_id"].map(version)
+    r = r.rename(columns={"tags.paso": "paso", "params.lote_evaluacion": "lote_evaluacion", "tags.recomendacion": "recomendacion",
+                          "tags.decision": "decision", "tags.motivo_decision": "motivo_decision"})
+    try:
+        d = sf.sql("SELECT RUN_ID, TS_DECISION FROM PRODUCCION.REENTRENAMIENTOS")
+    except Exception:  # noqa: BLE001 - la tabla puede no existir en la cuenta vigente
+        d = pd.DataFrame(columns=["run_id", "ts_decision"])
+    r = r.merge(d, on="run_id", how="left")
+    anterior = DOCS / "reentrenamientos.csv"
+    if anterior.exists():
+        previo = pd.read_csv(anterior)[["run_id", "ts_decision"]].rename(columns={"ts_decision": "ts_previo"})
+        r = r.merge(previo, on="run_id", how="left")
+        r["ts_decision"] = r["ts_decision"].astype(object).where(r["ts_decision"].notna(), r["ts_previo"])
     cols = ["run_id", "start_time", "tags.mlflow.runName", "tags.motivo", "paso", "lote_evaluacion", "params.ventana",
             "params.champion_version", "challenger_version", "metrics.eval_perdida_x1000_champion",
             "metrics.eval_perdida_x1000_challenger", "metrics.mejora_x1000", "metrics.umbral_mejora_x1000",
             "metrics.eval_auc_pr_champion", "metrics.eval_auc_pr_challenger", "metrics.segundos_entrenamiento",
             "recomendacion", "decision", "motivo_decision", "ts_decision", "tags.git_commit", "params.datos_sha256"]
     r = r[[c for c in cols if c in r.columns]].sort_values("start_time")
-    r.to_csv(DOCS / "reentrenamientos.csv", index=False)
-    return f"reentrenamientos.csv: {len(r)} corridas"
+    r.to_csv(anterior, index=False)
+    return f"reentrenamientos.csv: {len(r)} corridas ({r['tags.motivo'].value_counts().to_dict()})"
 
 
 def predicciones(sf):

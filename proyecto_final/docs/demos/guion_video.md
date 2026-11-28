@@ -18,3 +18,14 @@ Notas:
   el alias `challenger`. Con el lote 21 se comparan dos modelos que no lo vieron: la v5 (entrenada hasta el lote 18) y
   el challenger (hasta el lote 20). Los ensayos en los lotes 20, 22 y 23 recomendaban rechazar (−1,15, −10,86 y −4,48).
 - El rollback ya se demostró fuera del video (v5 → v4 → v5): `docs/demos/rollback.csv`.
+
+## Versiones creadas por las demostraciones
+
+`demo_reentrenamiento.sh` registra en cada corrida una versión real de `centinela-modelo` (paso 101, `motivo = demostración`,
+evaluada en el lote 21: v5 230,99 frente a challenger 191,35 por 1.000, mejora +39,64 → la regla recomienda promover).
+No forman parte de la simulación: después de cada demostración el champion vuelve a la v5.
+
+| Versión | Grabación | Qué pasó | Evidencia |
+|---|---|---|---|
+| v7 | Primera grabación, **descartada** (quedó incompleta antes del rollback) | Aprobada en vivo el 2026-11-28 a las 02:52:02 UTC; **revertida a la v5** con `demo_rollback.sh` el 2026-11-28 a las 03:01:39 UTC (la API sirvió la v5 a los 26,1 s, con el mismo digest de imagen) | corrida `d8f7bc42…` en MLflow; `docs/demos/rollback.csv`; `docs/reentrenamientos.csv` |
+| v8 | Grabación final ([video](https://youtu.be/qiJWg3I9YaM)) | Aprobada en vivo el 2026-11-28 a las 03:28:49 UTC (mejora +39,64 → la regla recomienda promover); **revertida a la v5** con `demo_rollback.sh` en el mismo video, a las 03:30:32 UTC (la API sirvió la v5 a los 4,0 s, con el mismo digest de imagen) | corrida `c5791fc6…` en MLflow; `docs/demos/rollback.csv`; `docs/reentrenamientos.csv` |

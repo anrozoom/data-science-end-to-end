@@ -7,6 +7,10 @@
 > [`proyecto_final/README.md`](../../proyecto_final/README.md); cifras clave:
 > [`proyecto_final/docs/resumen_cifras.md`](../../proyecto_final/docs/resumen_cifras.md). Las secciones de abajo
 > resumen los PSet 2 y 3, que siguen en `pset_2/` y `pset_3/` (tags `pset-02` y `pset-03`).
+>
+> 🎥 **Video de la demostración:** https://youtu.be/qiJWg3I9YaM
+> 📄 **Documento técnico:** [PSet4_memo_Zuniga_Salvador.pdf](../../proyecto_final/docs/PSet4_memo_Zuniga_Salvador.pdf)
+> 📊 **Presentación ejecutiva:** [PSet4_presentacion_Zuniga_Salvador.pdf](../../proyecto_final/docs/PSet4_presentacion_Zuniga_Salvador.pdf)
 
 > Este es el README de tu proyecto: reemplaza cada sección entre corchetes a medida que avanzas. Escríbelo para alguien que clona tu fork sin haber estado en clase y necesita entender qué hace el proyecto y correrlo, no como una nota para ti.
 

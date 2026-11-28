@@ -69,6 +69,10 @@ COLUMNAS_REQUERIDAS = {
 }
 
 
+class TablasIncompletas(ValueError):
+    """Snowflake responde, pero sus tablas no cubren la simulación completa (p. ej., solo las demos del video)."""
+
+
 def validar(datos: dict) -> None:
     """Lanza ValueError si los datos no cubren la simulación completa (26 pasos y lotes etiquetados 0 a 23)."""
     faltas = []
@@ -91,7 +95,7 @@ def validar(datos: dict) -> None:
         if not set(range(N_LOTES - 2)) <= lotes:
             faltas.append(f"desempeño con {len(lotes & set(range(N_LOTES - 2)))} de {N_LOTES - 2} lotes etiquetados")
     if faltas:
-        raise ValueError("tablas incompletas para la simulación completa: " + "; ".join(faltas[:4]))
+        raise TablasIncompletas("tablas incompletas para la simulación completa: " + "; ".join(faltas[:4]))
 
 
 def _csv() -> dict:
@@ -99,25 +103,37 @@ def _csv() -> dict:
             "reentrenamientos": pd.read_csv(DOCS / "simulacion" / "reentrenamientos_simulacion.csv")}
 
 
+MENSAJE_CSV = ("Mostrando los resultados de la simulación completa exportados en docs/. La simulación se ejecutó en la "
+               "cuenta de Snowflake anterior, que quedó suspendida.")
+
+
 @st.cache_data(ttl=300, show_spinner="Cargando datos de monitoreo…")
-def cargar(fuente: str) -> tuple[dict, str, str | None]:
-    aviso = None
+def cargar(fuente: str) -> tuple[dict, str, str | None, str]:
+    """Devuelve (datos, origen, aviso, nivel). El detalle técnico de por qué se usan los CSV va al log del contenedor."""
+    import logging
+    log = logging.getLogger("centinela.tablero")
+    aviso, nivel = None, "info"
     if fuente in ("auto", "snowflake"):
         try:
             datos_sf = _snowflake()
             validar(datos_sf)
-            return datos_sf, "Snowflake (CENTINELA.PRODUCCION)", None
-        except Exception as e:  # noqa: BLE001 - sin conexión o tablas incompletas: CSV de docs/
+            return datos_sf, "Snowflake (CENTINELA.PRODUCCION)", None, nivel
+        except TablasIncompletas as e:
             if fuente == "snowflake":
                 raise
-            aviso = (f"No se pudieron leer las tablas de la simulación en Snowflake ({type(e).__name__}: "
-                     f"{str(e).splitlines()[0][:120]}); se usan los CSV de docs/ (exportes de la simulación completa).")
+            log.warning("Se usan los CSV de docs/: %s", e)
+            aviso = MENSAJE_CSV
+        except Exception as e:  # noqa: BLE001 - sin conexión: CSV de docs/
+            if fuente == "snowflake":
+                raise
+            log.warning("Se usan los CSV de docs/: no se pudo consultar Snowflake (%s: %s)", type(e).__name__, e)
+            aviso, nivel = "No hay conexión con Snowflake: " + MENSAJE_CSV[0].lower() + MENSAJE_CSV[1:], "warning"
     datos_csv = _csv()
     validar(datos_csv)
-    return datos_csv, "CSV de docs/", aviso
+    return datos_csv, "CSV de docs/", aviso, nivel
 
 
-datos, origen, aviso = cargar(FUENTE)
+datos, origen, aviso, nivel_aviso = cargar(FUENTE)
 U = json.loads((DOCS / "monitoreo" / "umbrales.json").read_text(encoding="utf-8"))
 mon, al, re = datos["monitoreo"], datos["alertas"], datos["reentrenamientos"]
 for d in (mon, al, re):
@@ -177,7 +193,7 @@ st.caption(f"Fuente: **{origen}** · 26 lotes semanales (jul-dic 2020) · el tar
            f"franjas grises: deriva inducida (D1 desde el lote {D1_DESDE}, D2 desde el {D2_DESDE}) · "
            "líneas verticales: reentrenamientos (continua = aprobada, punteada = rechazada)")
 if aviso:
-    st.warning(aviso)
+    (st.info if nivel_aviso == "info" else st.warning)(aviso)
 
 sistema = serie("sistema", ["latencia_online_p50_ms", "latencia_online_p95_ms", "volumen", "volumen_relativo_2019",
                             "errores_4xx", "errores_5xx", "solicitudes"])
